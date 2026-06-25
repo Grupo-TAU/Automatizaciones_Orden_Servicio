@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 82mm; height: 70mm; margin: 0; overflow: hidden; background: white; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg width="82mm" height="70mm" viewBox="0 0 730 510"
+     preserveAspectRatio="none"
+     xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>text { font-family: 'Arial Narrow', Arial, sans-serif; }</style>
+
+  <!-- Flechas ROJAS (distancias) -->
+  <marker id="re" viewBox="0 0 10 8" refX="10" refY="4"
+          markerWidth="6" markerHeight="6" orient="auto">
+    <path d="M0,0.5 L9.5,4 L0,7.5 Z" fill="#A93226"/>
+  </marker>
+  <marker id="rs" viewBox="0 0 10 8" refX="0" refY="4"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0.5 L9.5,4 L0,7.5 Z" fill="#A93226"/>
+  </marker>
+
+  <!-- Flechas AZULES (Ø) -->
+  <marker id="be" viewBox="0 0 10 8" refX="10" refY="4"
+          markerWidth="6" markerHeight="6" orient="auto">
+    <path d="M0,0.5 L9.5,4 L0,7.5 Z" fill="#1A5276"/>
+  </marker>
+</defs>
+
+<!-- ═══════════════════════════════════
+     ENCABEZADO
+═══════════════════════════════════ -->
+<rect x="0" y="0" width="730" height="57" fill="#1B3A52"/>
+<line x1="0" y1="55" x2="730" y2="55" stroke="#2E86C1" stroke-width="3"/>
+<text x="14" y="37" font-size="23" font-weight="700"
+      fill="white" letter-spacing="1.5">CÁMARA DE INSPECCIÓN</text>
+
+<!-- Rosa de norte -->
+<g transform="translate(694,28)">
+  <circle r="21" fill="#14304A" stroke="#3A7FC1" stroke-width="2"/>
+  <polygon points="0,-15 -5,5 0,-1 5,5" fill="white"/>
+  <polygon points="0,15 -5,-5 0,1 5,-5" fill="#3A7FC1"/>
+  <text y="-18" text-anchor="middle" font-size="14" fill="white" font-weight="bold">N</text>
+</g>
+
+<!-- ═══════════════════════════════════
+     ZONAS (fondos)
+═══════════════════════════════════ -->
+<rect x="0"   y="57" width="243" height="351" fill="#DDDAD2"/>
+<rect x="243" y="57" width="243" height="351" fill="#EBE6D6"/>
+<rect x="486" y="57" width="244" height="351" fill="#ECF4E6"/>
+
+<!-- ═══════════════════════════════════
+     LÍNEAS DE BORDE DE ZONA
+═══════════════════════════════════ -->
+<line x1="243" y1="57" x2="243" y2="408" stroke="#333" stroke-width="2.5"/>
+<line x1="486" y1="57" x2="486" y2="408"
+      stroke="#3D6B20" stroke-width="2.5" stroke-dasharray="10,5"/>
+
+<!-- ═══════════════════════════════════
+     ETIQUETAS DE ZONA
+═══════════════════════════════════ -->
+<text x="121" y="240" text-anchor="middle"
+      font-size="13" fill="#AAAAAA" font-style="italic">CALLE</text>
+<text x="365" y="118" text-anchor="middle"
+      font-size="15" fill="#C0B89C" font-style="italic">VEREDA</text>
+<text x="490" y="74"
+      font-size="10" fill="#3D6B20" font-style="italic">LÍM. PADRÓN</text>
+<text x="608" y="88" text-anchor="middle"
+      font-size="16" fill="#5E9040" opacity="0.65" font-style="italic">PADRÓN</text>
+
+<!-- ═══════════════════════════════════
+     COLECTOR EN VEREDA  (centro de la franja)
+═══════════════════════════════════ -->
+<line x1="365" y1="66" x2="365" y2="383" stroke="#2D2D2D" stroke-width="5"/>
+<circle cx="365" cy="72"  r="8" fill="white" stroke="#2D2D2D" stroke-width="2.5"/>
+<circle cx="365" cy="378" r="8" fill="white" stroke="#2D2D2D" stroke-width="2.5"/>
+
+<!-- Ramal de conexión: colector vereda → cámara -->
+<line x1="365" y1="221" x2="548" y2="221" stroke="#444" stroke-width="3"/>
+<circle cx="365" cy="221" r="7" fill="#2D2D2D"/>
+
+<!-- Ø – diámetro de la tubería -->
+<line x1="448" y1="208" x2="448" y2="236" stroke="#1A5276" stroke-width="2"/>
+<line x1="448" y1="221" x2="390" y2="221"
+      stroke="#1A5276" stroke-width="1.5" marker-end="url(#be)"/>
+<rect x="453" y="200" width="72" height="14" rx="2" fill="#EBE6D6" opacity="0.93"/>
+<text x="455" y="211" font-size="13" fill="#1A5276" font-weight="bold">Ø [% "Diametro_Conexion" %] mm</text>
+
+<!-- L. Cnx. y Material -->
+<rect x="390" y="247" width="64" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="398" y="261" font-size="10" fill="#1A5276" font-style="italic">L. Cnx.</text>
+<text x="398" y="275" font-size="13" fill="#1A5276" font-weight="bold">[% "Long_Conexión" %] m</text>
+
+<rect x="460" y="247" width="64" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="468" y="261" font-size="10" fill="#1A5276" font-style="italic">Material</text>
+<text x="468" y="275" font-size="11" fill="#1A5276" font-weight="bold">[% "Material" %]</text>
+
+<!-- ═══════════════════════════════════
+     CÁMARA (vista en planta)
+═══════════════════════════════════ -->
+<rect x="548" y="180" width="82" height="82"
+      fill="white" stroke="#1B3A52" stroke-width="3"/>
+<line x1="548" y1="180" x2="630" y2="262"
+      stroke="#C0D8E8" stroke-width="1.5" stroke-dasharray="4,3"/>
+<line x1="630" y1="180" x2="548" y2="262"
+      stroke="#C0D8E8" stroke-width="1.5" stroke-dasharray="4,3"/>
+<text x="589" y="227" text-anchor="middle"
+      font-size="14" fill="#1B3A52" font-weight="bold" opacity="0.55">C.I.</text>
+
+<!-- ═══════════════════════════════════
+     COTA  Limite_Padron
+═══════════════════════════════════ -->
+<line x1="486" y1="185" x2="486" y2="230"
+      stroke="#A93226" stroke-width="1.5" stroke-dasharray="3,3"/>
+<line x1="548" y1="185" x2="548" y2="230"
+      stroke="#A93226" stroke-width="1.5" stroke-dasharray="3,3"/>
+<line x1="488" y1="197" x2="546" y2="197"
+      stroke="#A93226" stroke-width="2.2"
+      marker-start="url(#rs)" marker-end="url(#re)"/>
+<rect x="488" y="181" width="66" height="14" rx="2" fill="#ECF4E6" opacity="0.95"/>
+<text x="517" y="192" text-anchor="middle"
+      font-size="12" fill="#A93226" font-weight="bold">[% "Limite_Padron" %] m</text>
+
+<!-- ═══════════════════════════════════
+     COTA  Long_Vereda
+═══════════════════════════════════ -->
+<line x1="243" y1="298" x2="243" y2="326" stroke="#A93226" stroke-width="2.5"/>
+<line x1="548" y1="298" x2="548" y2="326" stroke="#A93226" stroke-width="2.5"/>
+<line x1="245" y1="312" x2="546" y2="312"
+      stroke="#A93226" stroke-width="2"
+      marker-start="url(#rs)" marker-end="url(#re)"/>
+<rect x="335" y="316" width="120" height="15" rx="2" fill="#EBE6D6" opacity="0.95"/>
+<text x="395" y="327" text-anchor="middle"
+      font-size="13" fill="#A93226" font-weight="bold">[% "Long_Vereda" %] m</text>
+
+<!-- ═══════════════════════════════════
+     CALLOUTS DERECHA
+═══════════════════════════════════ -->
+<rect x="644" y="193" width="68" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="652" y="207" font-size="10" fill="#1A5276" font-style="italic">Prof.</text>
+<text x="652" y="221" font-size="13" fill="#1A5276" font-weight="bold">[% "Profundidad" %] m</text>
+
+<rect x="644" y="231" width="68" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="652" y="245" font-size="10" fill="#1A5276" font-style="italic">Diám.</text>
+<text x="652" y="259" font-size="13" fill="#1A5276" font-weight="bold">[% "Diametro_Conexion" %] mm</text>
+
+<!-- Nota -->
+<text x="14" y="399" font-size="9" fill="#BBB" font-style="italic">Sin escala · Vista en planta</text>
+
+<!-- Borde exterior -->
+<rect x="0" y="0" width="730" height="408" fill="none" stroke="#B0B0B0" stroke-width="2"/>
+
+</svg>
+</body>
+</html>

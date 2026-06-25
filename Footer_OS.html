@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Footer OS — Hoja extra</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Barlow', Arial, sans-serif;
+    background: #ffffff;
+    color: #2c3e50;
+    font-size: 12px;
+  }
+
+  .page {
+    position: relative;
+    width: 100%;
+    background: #ffffff;
+  }
+
+  .footer-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 1px solid #c8d0d8;
+    background: #f4f6f8;
+  }
+  .footer-table td {
+    padding: 5px 18px;
+    font-size: 12.5px;
+    color: #6b7a8d;
+    vertical-align: middle;
+  }
+  .footer-table td.footer-center {
+    text-align: center;
+    font-weight: 600;
+    color: #0a3d62;
+    font-size: 13px;
+    letter-spacing: .04em;
+  }
+  .footer-table td.footer-right {
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <table class="footer-table">
+    <tr>
+      <td>Grupo TAU · DICA – SOMS - Intendencia de Montevideo</td>
+      <td class="footer-center">OS [% "N°_OS" %]</td>
+      <td class="footer-right">Generado: [% format_date(now(),'dd/MM/yyyy') %]</td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>
