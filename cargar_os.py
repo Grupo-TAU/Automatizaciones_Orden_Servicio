@@ -1,9 +1,9 @@
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  SCRIPT: cargar_os_Futuro.py  —  PASO 1 de 3                                ║
-║  Descripción: Registra la OS recibida por correo en la capa inspecciones_OS. ║
-║               El punto se ubica haciendo clic en el mapa de QGIS.            ║
-║               Soporta carga automática de datos desde el PDF de la IM.       ║
+║  SCRIPT: cargar_os_Futuro.py                                                 ║
+║  Descripción: Registra la OS recibida por correo en la capa                  ║
+║               inspecciones_nuevas_OS. El punto se ubica haciendo clic en el  ║
+║               mapa de QGIS. Soporta carga automática desde el PDF de la IM.  ║
 ║  Uso: Consola Python de QGIS                                                 ║
 ║  Autor: Grupo TAU – DICA                                                     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -11,30 +11,27 @@
 DEPENDENCIA EXTERNA:
   pdfplumber — necesaria para parsear el PDF de la IM.
   Instalar una sola vez desde la consola de QGIS:
-      import subprocess, sys
-      subprocess.call([sys.executable, '-m', 'pip', 'install', 'pdfplumber'])
+      import subprocess, sys, os
+      target = os.path.join(sys.prefix, 'Lib', 'site-packages')
+      subprocess.call([os.path.join(sys.prefix, 'python.exe'),
+                       '-m', 'pip', 'install', 'pdfplumber', '--target', target])
 
-FLUJO COMPLETO:
-  Paso 1 — cargar_os_Futuro.py  ← este script
-  Paso 2 — edición nativa QGIS / trabajo de campo
-  Paso 3 — generar_informe.py
 """
 
 import os
 import re
-from datetime import datetime
 from qgis.core import (
     QgsProject,
     QgsFeature,
     QgsGeometry,
-    QgsField,
 )
 from qgis.gui import QgsMapToolEmitPoint
-from PyQt5.QtCore import QVariant, Qt
+from qgis.utils import iface
+from PyQt5.QtCore import QVariant, Qt, QDate
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QPushButton, QFileDialog,
-    QTextEdit, QMessageBox, QGroupBox,
+    QMessageBox, QGroupBox,
 )
 from PyQt5.QtGui import QFont
 
@@ -43,17 +40,15 @@ from PyQt5.QtGui import QFont
 # ─────────────────────────────────────────────────────────────────────────────
 
 RAIZ_IMAGENES = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\SOMS\IMAGENES_OS"
-CAPA_OS       = "inspecciones_OS"
+CAPA_OS       = "inspecciones_nuevas_OS"
 
 CAMPOS_PASO1 = [
-    ("N__trabajo",          QVariant.String),
-    ("N__OS",               QVariant.String),
-    ("Name",                QVariant.String),
-    ("Fecha_Ingreso",       QVariant.String),
-    ("Tipo_de_Inspecci__n", QVariant.String),
-    ("Observaciones_prev_", QVariant.String),
-    ("Estado",              QVariant.String),
-    ("RUTA",                QVariant.String),
+    ("N°_OS",         QVariant.String),
+    ("Ubicación",     QVariant.String),
+    ("Fecha_Ingreso", QVariant.Date),
+    ("Descripción",   QVariant.String),
+    ("Etapa",         QVariant.String),
+    ("Restringir",    QVariant.String),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -83,70 +78,38 @@ def parsear_pdf_os(ruta_pdf):
         raise ImportError(
             "Falta la librería pdfplumber.\n\n"
             "Instalala ejecutando en la consola de QGIS:\n"
-            "  import subprocess, sys\n"
-            "  subprocess.call([sys.executable, '-m', 'pip', 'install', 'pdfplumber'])"
+            "  import subprocess, sys, os\n"
+            "  target = os.path.join(sys.prefix, 'Lib', 'site-packages')\n"
+            "  subprocess.call([os.path.join(sys.prefix, 'python.exe'),\n"
+            "                   '-m', 'pip', 'install', 'pdfplumber', '--target', target])"
         )
 
     datos = {}
 
     with pdfplumber.open(ruta_pdf) as pdf:
-        p1 = pdf.pages[0].extract_text() or ""
-        p2 = (pdf.pages[1].extract_text() or "") if len(pdf.pages) > 1 else ""
+        texto = "\n".join(p.extract_text() or "" for p in pdf.pages)
 
-        # ── Orden de Servicio ──────────────────────────────────────────────
-        m = re.search(r'Orden de Servicio\s+(\d+)', p1)
+        # ── N°_OS ──────────────────────────────────────────────────────────
+        m = re.search(r'Orden de Servicio\s+(\d+)', texto)
         if m:
             datos['orden_servicio'] = m.group(1)
 
-        # ── Fecha ingreso ──────────────────────────────────────────────────
-        m = re.search(r'(\d{2}/\d{2}/\d{4})\s+\d{2}:\d{2}', p1)
+        # ── Fecha_Ingreso — después de "Fecha desde:" ──────────────────────
+        m = re.search(r'Fecha desde:\s*(\d{2}/\d{2}/\d{4})', texto)
         if m:
             datos['fecha_ingreso'] = m.group(1)
 
-        # ── Descripción ────────────────────────────────────────────────────
-        lineas = [l.strip() for l in p1.splitlines() if l.strip()]
-        for i, linea in enumerate(lineas):
-            if re.match(r'Orden de Servicio\s+\d+', linea):
-                for j in range(i + 1, min(i + 4, len(lineas))):
-                    if not re.match(r'\d{2}/\d{2}/\d{4}', lineas[j]):
-                        datos['descripcion'] = lineas[j]
-                        break
-                break
-
-        # ── Ubicación ──────────────────────────────────────────────────────
-        m = re.search(r'Ubicaci[oó]n:\s*(.+?)(?:\n|$)', p1)
+        # ── Descripción — entre "Observación:" y "Problema Nº:" ───────────
+        m = re.search(r'Observaci[oó]n:\s*(.+?)\s*Problema\s*N[°º]:', texto, re.DOTALL)
         if m:
-            ubic = m.group(1).strip()
-            ubic = re.sub(r'\s*\[Padron[^\]]*\]', '', ubic)
-            ubic = re.sub(r'\s+entre\s+.+$', '', ubic, flags=re.IGNORECASE)
+            datos['descripcion'] = re.sub(r'\s+', ' ', m.group(1)).strip()
+
+        # ── Ubicación — entre "Ubicación:" y "Observación:" ───────────────
+        m = re.search(r'Ubicaci[oó]n:\s*(.+?)\s*Observaci[oó]n:', texto, re.DOTALL)
+        if m:
+            ubic = re.sub(r'\s+', ' ', m.group(1)).strip()
             ubic = re.sub(r'N[°º]:\s*', 'Nº ', ubic)
-            datos['ubicacion'] = ubic.strip()
-
-        # ── Solicitante + Contacto ─────────────────────────────────────────
-        m = re.search(
-            r'^([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{3,40})\s+\d{5,8}\s+(\d{6,9})\s+(\d{6,9})',
-            p2, re.MULTILINE
-        )
-        if m:
-            datos['solicitante'] = m.group(1).strip()
-            tel = m.group(2).strip()
-            cel = m.group(3).strip()
-            partes = []
-            if tel:
-                partes.append(f"Tel: {tel}")
-            if cel:
-                partes.append(f"Cel: {cel}")
-            datos['contacto'] = " / ".join(partes)
-
-        # ── Observaciones del solicitante ──────────────────────────────────
-        m = re.search(
-            r'\d{6,9}\s+\d{6,9}\s*\n(.+?)\nObservaciones:',
-            p2, re.DOTALL
-        )
-        if m:
-            obs = m.group(1).strip()
-            if obs:
-                datos['obs_cliente'] = obs
+            datos['ubicacion'] = ubic
 
     return datos
 
@@ -171,11 +134,23 @@ def agregar_feature_os(datos, punto_xy):
     feat = QgsFeature(capa.fields())
     feat.setGeometry(QgsGeometry.fromPointXY(punto_xy))
 
-    for nombre_campo, _ in CAMPOS_PASO1:
-        if nombre_campo in datos and capa.fields().indexOf(nombre_campo) >= 0:
-            feat.setAttribute(nombre_campo, datos[nombre_campo])
+    indices_seteados = set()
+    for nombre_campo, tipo in CAMPOS_PASO1:
+        idx = capa.fields().indexOf(nombre_campo)
+        if idx >= 0 and nombre_campo in datos:
+            valor = datos[nombre_campo]
+            if tipo == QVariant.Date and isinstance(valor, str) and valor:
+                valor = QDate.fromString(valor, "dd/MM/yyyy")
+            feat.setAttribute(idx, valor)
+            indices_seteados.add(idx)
 
-    feat.setAttribute("fecha_carga", datetime.now().strftime("%Y-%m-%d %H:%M"))
+    # Evaluar expresiones por defecto de la capa para campos no seteados
+    # (ej: "N° Trabajo" con expresión maximum("N° Trabajo") + 1)
+    for idx in range(capa.fields().count()):
+        if idx not in indices_seteados:
+            defn = capa.defaultValueDefinition(idx)
+            if defn.isValid():
+                feat.setAttribute(idx, capa.defaultValue(idx))
 
     capa.addFeature(feat)
     capa.commitChanges()
@@ -190,9 +165,8 @@ class DialogoRegistroOS(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Registrar OS — Paso 1")
+        self.setWindowTitle("Registrar OS")
         self.setMinimumWidth(540)
-        self.carpeta_os          = ""
         self.punto_xy            = None
         self._capturador         = None
         self._herramienta_previa = None
@@ -245,46 +219,21 @@ class DialogoRegistroOS(QDialog):
         h_pdf.addWidget(self.lbl_pdf, 1)
         layout.addWidget(grp_pdf)
 
-        # ── Datos del correo ─────────────────────────────────────────────
-        grp = QGroupBox("Datos del correo")
+        # ── Datos ────────────────────────────────────────────────────────
+        grp = QGroupBox("Datos de la OS")
         form = QFormLayout(grp)
         form.setSpacing(6)
 
-        self.f_nro_trabajo    = self._campo("ej: 1  (completar manualmente)")
         self.f_orden_servicio = self._campo("ej: 5337775")
-        self.f_solicitante    = self._campo("ej: BEATRIZ TOLMEO")
         self.f_fecha_ingreso  = self._campo("dd/mm/aaaa")
         self.f_ubicacion      = self._campo("ej: 25 DE MAYO Nº 259")
-        self.f_descripcion    = self._campo("ej: Inspeccion camara televisada")
+        self.f_descripcion    = self._campo("ej: Inspección cámara televisada")
 
-        form.addRow("Nº Trabajo:",        self.f_nro_trabajo)
         form.addRow("Orden de Servicio:", self.f_orden_servicio)
-        form.addRow("Solicitante:",       self.f_solicitante)
         form.addRow("Fecha ingreso:",     self.f_fecha_ingreso)
         form.addRow("Ubicación:",         self.f_ubicacion)
         form.addRow("Descripción:",       self.f_descripcion)
         layout.addWidget(grp)
-
-        # ── Observaciones del solicitante ────────────────────────────────
-        grp_obs = QGroupBox("Observaciones del solicitante")
-        v_obs = QVBoxLayout(grp_obs)
-        self.f_observaciones = QTextEdit()
-        self.f_observaciones.setFixedHeight(65)
-        self.f_observaciones.setPlaceholderText(
-            "Observaciones/notas del solicitante (se completa desde el PDF)...")
-        v_obs.addWidget(self.f_observaciones)
-        layout.addWidget(grp_obs)
-
-        # ── Carpeta de la OS ─────────────────────────────────────────────
-        grp_carpeta = QGroupBox("Carpeta de la OS  (donde guardás el archivo del correo)")
-        h = QHBoxLayout(grp_carpeta)
-        self.lbl_carpeta = QLabel("Sin seleccionar")
-        self.lbl_carpeta.setWordWrap(True)
-        btn_carpeta = QPushButton("Seleccionar…")
-        btn_carpeta.clicked.connect(self._seleccionar_carpeta)
-        h.addWidget(self.lbl_carpeta, 1)
-        h.addWidget(btn_carpeta)
-        layout.addWidget(grp_carpeta)
 
         # ── Botones ──────────────────────────────────────────────────────
         hbox = QHBoxLayout()
@@ -311,27 +260,25 @@ class DialogoRegistroOS(QDialog):
         self._herramienta_previa = canvas.mapTool()
         self._capturador = _CapturadorPunto(canvas, self._punto_capturado)
         canvas.setMapTool(self._capturador)
-        self.hide()
+        self.lbl_punto.setText("Hacé clic en el mapa…")
+        self.lbl_punto.setStyleSheet("color:#e67e00; font-weight:bold;")
 
     def _punto_capturado(self, punto, boton):
         if boton != Qt.LeftButton:
             return
         self.punto_xy = punto
-        canvas = iface.mapCanvas()
-        canvas.setMapTool(self._herramienta_previa)
+        iface.mapCanvas().setMapTool(self._herramienta_previa)
         self._capturador = None
-        self.show()
-        self.raise_()
-        self.activateWindow()
         self.lbl_punto.setText(f"X: {punto.x():.2f}  |  Y: {punto.y():.2f}")
         self.lbl_punto.setStyleSheet("color:green; font-weight:bold;")
+        self.raise_()
+        self.activateWindow()
 
     # ── Carga desde PDF ──────────────────────────────────────────────────────
 
     def _cargar_pdf(self):
-        inicio = self.carpeta_os or RAIZ_IMAGENES
         ruta_pdf, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar PDF de la OS", inicio, "PDF (*.pdf *.PDF)"
+            self, "Seleccionar PDF de la OS", RAIZ_IMAGENES, "PDF (*.pdf *.PDF)"
         )
         if not ruta_pdf:
             return
@@ -350,33 +297,13 @@ class DialogoRegistroOS(QDialog):
             'fecha_ingreso':  self.f_fecha_ingreso,
             'descripcion':    self.f_descripcion,
             'ubicacion':      self.f_ubicacion,
-            'solicitante':    self.f_solicitante,
         }
         for clave, widget in setters.items():
             if clave in datos:
                 widget.setText(datos[clave])
 
-        if 'obs_cliente' in datos:
-            self.f_observaciones.setPlainText(datos['obs_cliente'])
-
-        nombre = os.path.basename(ruta_pdf)
-        self.lbl_pdf.setText(f"✓  {nombre}")
+        self.lbl_pdf.setText(f"✓  {os.path.basename(ruta_pdf)}")
         self.lbl_pdf.setStyleSheet("color:green; font-weight:bold;")
-
-        if not self.carpeta_os:
-            carpeta = os.path.dirname(ruta_pdf)
-            self.carpeta_os = carpeta
-            self.lbl_carpeta.setText(carpeta)
-
-    # ── Carpeta ──────────────────────────────────────────────────────────────
-
-    def _seleccionar_carpeta(self):
-        ruta = QFileDialog.getExistingDirectory(
-            self, "Carpeta de la OS", self.carpeta_os or RAIZ_IMAGENES
-        )
-        if ruta:
-            self.carpeta_os = ruta
-            self.lbl_carpeta.setText(ruta)
 
     # ── Validación ───────────────────────────────────────────────────────────
 
@@ -398,14 +325,12 @@ class DialogoRegistroOS(QDialog):
             return
 
         datos = {
-            "N__trabajo":          self.f_nro_trabajo.text().strip(),
-            "N__OS":               self.f_orden_servicio.text().strip(),
-            "Name":                self.f_ubicacion.text().strip(),
-            "Fecha_Ingreso":       self.f_fecha_ingreso.text().strip(),
-            "Tipo_de_Inspecci__n": self.f_descripcion.text().strip(),
-            "Observaciones_prev_": self.f_observaciones.toPlainText().strip(),
-            "Estado":              "Pendiente",
-            "RUTA":                self.carpeta_os,
+            "N°_OS":         self.f_orden_servicio.text().strip(),
+            "Ubicación":     self.f_ubicacion.text().strip(),
+            "Fecha_Ingreso": self.f_fecha_ingreso.text().strip(),
+            "Descripción":   self.f_descripcion.text().strip(),
+            "Etapa":         "Pendiente",
+            "Restringir":    "Si",
         }
 
         try:
@@ -420,11 +345,10 @@ class DialogoRegistroOS(QDialog):
 
         QMessageBox.information(
             self, "OS Registrada",
-            f"✓ OS {datos['N__OS']} registrada en QGIS.\n\n"
-            f"  Ubicación  : {datos['Name']}\n"
-            f"  Estado     : Pendiente\n"
-            f"  Carpeta    : {self.carpeta_os or '—'}\n\n"
-            "Cuando la inspección esté completa usá 'Generar Informe' (paso 3)."
+            f"✓ OS {datos['N°_OS']} registrada correctamente.\n\n"
+            f"  Ubicación : {datos['Ubicación']}\n"
+            f"  Etapa     : Pendiente\n"
+            f"  Restringir: Si"
         )
         self.accept()
 
@@ -433,8 +357,12 @@ class DialogoRegistroOS(QDialog):
 # PUNTO DE ENTRADA
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Variable global para evitar que el garbage collector destruya el diálogo
+_dlg_registro = None
+
 def main():
-    dlg = DialogoRegistroOS()
-    dlg.exec_()
+    global _dlg_registro
+    _dlg_registro = DialogoRegistroOS()
+    _dlg_registro.show()  # no-modal: permite clic en el mapa con el diálogo abierto
 
 main()

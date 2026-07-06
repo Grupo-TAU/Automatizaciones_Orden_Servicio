@@ -184,8 +184,10 @@
       <div class="section-header">Información general</div>
       <table class="data-table">
         <tr>
+          <td class="label">Nº Trabajo</td>
+          <td class="value">[% "N° Trabajo" %]</td>
           <td class="label">Solicitante</td>
-          <td class="value" colspan="3">SOMS - Intendencia de Montevideo</td>
+          <td class="value">SOMS - Intendencia de Montevideo</td>
         </tr>
         <tr>
           <td class="label">Ingreso</td>
@@ -219,20 +221,10 @@
       </table>
     </div>
 
-    <!-- CROQUIS + OBSERVACIONES en paralelo -->
+    <!-- OBSERVACIONES -->
     <div class="section-block">
-      <table style="width:100%; border-collapse:collapse;">
-        <tr>
-          <td style="width:82mm; vertical-align:top; padding:0;">
-            <div class="section-header">Croquis</div>
-            <div style="width:82mm; height:70mm; overflow:hidden;"></div>
-          </td>
-          <td style="vertical-align:top; padding:0;">
-            <div class="section-header">Observaciones</div>
-            <div class="obs-box" style="height:70mm;">[% relation_aggregate('observaciones_os', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n') %]</div>
-          </td>
-        </tr>
-      </table>
+      <div class="section-header">Observaciones</div>
+      <div class="obs-box" style="height:70mm;">[% relation_aggregate('observaciones_os', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n') %]</div>
     </div>
 
     <!-- CONCLUSIONES -->
