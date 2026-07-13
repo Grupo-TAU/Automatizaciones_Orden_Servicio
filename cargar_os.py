@@ -51,6 +51,7 @@ CAMPOS_PASO1 = [
     ("Fecha_Ingreso", QVariant.Date),
     ("Descripción",   QVariant.String),
     ("N_Problema",    QVariant.String),
+    ("Sector",        QVariant.String),
     ("Etapa",         QVariant.String),
     ("Restringir",    QVariant.String),
 ]
@@ -98,8 +99,9 @@ def parsear_pdf_os(ruta_pdf):
         if m:
             datos['orden_servicio'] = m.group(1)
 
-        # ── Fecha_Ingreso — después de "Fecha desde:" ──────────────────────
-        m = re.search(r'Fecha desde:\s*(\d{2}/\d{2}/\d{4})', texto)
+        # ── Fecha_Ingreso — timestamp arriba a la derecha (antes del título,
+        #   presente en ambos tipos de OS) ───────────────────────────────
+        m = re.search(r'(\d{2}/\d{2}/\d{4})\s+\d{2}:\d{2}.*?Orden de Servicio', texto, re.DOTALL)
         if m:
             datos['fecha_ingreso'] = m.group(1)
 
@@ -124,6 +126,11 @@ def parsear_pdf_os(ruta_pdf):
         m = re.search(r'Problema\s*N[°º]:\s*(.+?)\s*Fecha problema:', texto, re.DOTALL)
         if m:
             datos['n_problema'] = re.sub(r'\s+', ' ', m.group(1)).strip()
+
+        # ── Sector — entre "Sector:" y "Generada" ──────────────────────────
+        m = re.search(r'Sector:\s*(.+?)\s*Generada', texto, re.DOTALL)
+        if m:
+            datos['sector'] = re.sub(r'\s+', ' ', m.group(1)).strip()
 
     return datos
 
@@ -280,12 +287,14 @@ class DialogoRegistroOS(QDialog):
         self.f_ubicacion      = self._campo("ej: 25 DE MAYO Nº 259")
         self.f_descripcion    = self._campo("ej: Inspección cámara televisada")
         self.f_n_problema     = self._campo("ej: 123456")
+        self.f_sector         = self._campo("ej: Baderery-Giberol")
 
         form.addRow("Orden de Servicio:", self.f_orden_servicio)
         form.addRow("Fecha ingreso:",     self.f_fecha_ingreso)
         form.addRow("Ubicación:",         self.f_ubicacion)
         form.addRow("Descripción:",       self.f_descripcion)
         form.addRow("N° Problema:",       self.f_n_problema)
+        form.addRow("Sector:",            self.f_sector)
         layout.addWidget(grp)
 
         # ── Botones ──────────────────────────────────────────────────────
@@ -351,6 +360,7 @@ class DialogoRegistroOS(QDialog):
             'descripcion':    self.f_descripcion,
             'ubicacion':      self.f_ubicacion,
             'n_problema':     self.f_n_problema,
+            'sector':         self.f_sector,
         }
         for clave, widget in setters.items():
             if clave in datos:
@@ -402,6 +412,7 @@ class DialogoRegistroOS(QDialog):
             "Fecha_Ingreso": self.f_fecha_ingreso.text().strip(),
             "Descripción":   self.f_descripcion.text().strip(),
             "N_Problema":    self.f_n_problema.text().strip(),
+            "Sector":        self.f_sector.text().strip(),
             "Etapa":         "Pendiente",
             "Restringir":    "Si",
         }
