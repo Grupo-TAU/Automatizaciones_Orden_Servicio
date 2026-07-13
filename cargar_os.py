@@ -24,6 +24,7 @@ from qgis.core import (
     QgsProject,
     QgsFeature,
     QgsGeometry,
+    QgsCoordinateTransform,
 )
 from qgis.gui import QgsMapToolEmitPoint
 from qgis.utils import iface
@@ -39,14 +40,17 @@ from PyQt5.QtGui import QFont
 # CONFIGURACIÓN
 # ─────────────────────────────────────────────────────────────────────────────
 
-RAIZ_IMAGENES = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\SOMS\IMAGENES_OS"
-CAPA_OS       = "inspecciones_nuevas_OS"
+RAIZ_IMAGENES  = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\SOMS\IMAGENES_OS"
+CAPA_OS        = "inspecciones_nuevas_OS"
+CAPA_PADRONES  = "padrones"
+CAMPO_PADRON   = "padron"
 
 CAMPOS_PASO1 = [
     ("N°_OS",         QVariant.String),
     ("Ubicación",     QVariant.String),
     ("Fecha_Ingreso", QVariant.Date),
     ("Descripción",   QVariant.String),
+    ("N_Problema",    QVariant.String),
     ("Etapa",         QVariant.String),
     ("Restringir",    QVariant.String),
 ]
@@ -111,6 +115,16 @@ def parsear_pdf_os(ruta_pdf):
             ubic = re.sub(r'N[°º]:\s*', 'Nº ', ubic)
             datos['ubicacion'] = ubic
 
+            # ── Padrón — entre "[Padron: " y "]" dentro de la Ubicación ────
+            m_pad = re.search(r'\[Padron:\s*(\d+)\]', ubic, re.IGNORECASE)
+            if m_pad:
+                datos['padron'] = m_pad.group(1)
+
+        # ── N_Problema — entre "Problema N°:" y "Fecha Problema" ──────────
+        m = re.search(r'Problema\s*N[°º]:\s*(.+?)\s*Fecha problema:', texto, re.DOTALL)
+        if m:
+            datos['n_problema'] = re.sub(r'\s+', ' ', m.group(1)).strip()
+
     return datos
 
 
@@ -121,6 +135,43 @@ def parsear_pdf_os(ruta_pdf):
 def obtener_capa(nombre):
     capas = QgsProject.instance().mapLayersByName(nombre)
     return capas[0] if capas else None
+
+
+def buscar_punto_padron(numero_padron):
+    """
+    Busca en la capa CAPA_PADRONES el feature cuyo campo CAMPO_PADRON coincide
+    con numero_padron y devuelve el centroide (QgsPointXY) reproyectado al CRS
+    del proyecto. Si la capa/campo no existen, o hay 0 o más de 1 coincidencia,
+    devuelve None (el usuario deberá hacer clic manualmente en el mapa).
+    """
+    capa = obtener_capa(CAPA_PADRONES)
+    if capa is None:
+        return None
+
+    idx = capa.fields().indexOf(CAMPO_PADRON)
+    if idx < 0:
+        return None
+
+    numero_padron = str(numero_padron).strip()
+    coincidencias = [
+        f for f in capa.getFeatures()
+        if str(f[CAMPO_PADRON]).strip() == numero_padron
+    ]
+    if len(coincidencias) != 1:
+        return None
+
+    geom = coincidencias[0].geometry()
+    if geom is None or geom.isEmpty():
+        return None
+
+    punto = geom.centroid().asPoint()
+
+    crs_proyecto = QgsProject.instance().crs()
+    if capa.crs() != crs_proyecto:
+        transformador = QgsCoordinateTransform(capa.crs(), crs_proyecto, QgsProject.instance())
+        punto = transformador.transform(punto)
+
+    return punto
 
 
 def agregar_feature_os(datos, punto_xy):
@@ -228,11 +279,13 @@ class DialogoRegistroOS(QDialog):
         self.f_fecha_ingreso  = self._campo("dd/mm/aaaa")
         self.f_ubicacion      = self._campo("ej: 25 DE MAYO Nº 259")
         self.f_descripcion    = self._campo("ej: Inspección cámara televisada")
+        self.f_n_problema     = self._campo("ej: 123456")
 
         form.addRow("Orden de Servicio:", self.f_orden_servicio)
         form.addRow("Fecha ingreso:",     self.f_fecha_ingreso)
         form.addRow("Ubicación:",         self.f_ubicacion)
         form.addRow("Descripción:",       self.f_descripcion)
+        form.addRow("N° Problema:",       self.f_n_problema)
         layout.addWidget(grp)
 
         # ── Botones ──────────────────────────────────────────────────────
@@ -297,6 +350,7 @@ class DialogoRegistroOS(QDialog):
             'fecha_ingreso':  self.f_fecha_ingreso,
             'descripcion':    self.f_descripcion,
             'ubicacion':      self.f_ubicacion,
+            'n_problema':     self.f_n_problema,
         }
         for clave, widget in setters.items():
             if clave in datos:
@@ -304,6 +358,24 @@ class DialogoRegistroOS(QDialog):
 
         self.lbl_pdf.setText(f"✓  {os.path.basename(ruta_pdf)}")
         self.lbl_pdf.setStyleSheet("color:green; font-weight:bold;")
+
+        # ── Ubicar el punto automáticamente a partir del padrón ────────────
+        if 'padron' in datos:
+            punto = buscar_punto_padron(datos['padron'])
+            if punto is not None:
+                self.punto_xy = punto
+                self.lbl_punto.setText(
+                    f"X: {punto.x():.2f}  |  Y: {punto.y():.2f}  "
+                    f"(Padrón {datos['padron']} — automático)"
+                )
+                self.lbl_punto.setStyleSheet("color:green; font-weight:bold;")
+            else:
+                QMessageBox.warning(
+                    self, "Padrón no ubicado",
+                    f"No se encontró (o hay más de una coincidencia para) el "
+                    f"padrón {datos['padron']} en la capa '{CAPA_PADRONES}'.\n\n"
+                    "Hacé clic manualmente en el mapa para ubicar la OS."
+                )
 
     # ── Validación ───────────────────────────────────────────────────────────
 
@@ -329,6 +401,7 @@ class DialogoRegistroOS(QDialog):
             "Ubicación":     self.f_ubicacion.text().strip(),
             "Fecha_Ingreso": self.f_fecha_ingreso.text().strip(),
             "Descripción":   self.f_descripcion.text().strip(),
+            "N_Problema":    self.f_n_problema.text().strip(),
             "Etapa":         "Pendiente",
             "Restringir":    "Si",
         }

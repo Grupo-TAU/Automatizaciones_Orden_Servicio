@@ -184,8 +184,10 @@
       <div class="section-header">Información general</div>
       <table class="data-table">
         <tr>
+          <td class="label">Nº Problema</td>
+          <td class="value">[% "N_Problema" %]</td>
           <td class="label">Solicitante</td>
-          <td class="value" colspan="3">SOMS - Intendencia de Montevideo</td>
+          <td class="value">SOMS - Intendencia de Montevideo</td>
         </tr>
         <tr>
           <td class="label">Ingreso</td>
@@ -229,7 +231,7 @@
           </td>
           <td style="vertical-align:top; padding:0;">
             <div class="section-header">Observaciones</div>
-            <div class="obs-box" style="height:70mm;">[% relation_aggregate('observaciones_os', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n') %]</div>
+            <div class="obs-box" style="height:70mm;">[% try(relation_aggregate('observaciones_os', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n'), try(relation_aggregate('observaciones_os_zona8', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n'), '')) %]</div>
           </td>
         </tr>
       </table>
