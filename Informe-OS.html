@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -231,7 +231,7 @@
           </td>
           <td style="vertical-align:top; padding:0;">
             <div class="section-header">Observaciones</div>
-            <div class="obs-box" style="height:70mm;">[% try(relation_aggregate('observaciones_os', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n'), try(relation_aggregate('observaciones_os_zona8', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n'), '')) %]</div>
+            <div class="obs-box" style="height:70mm;">[% array_to_string(array_filter(relation_aggregate('fotos_os', 'array_agg', CASE WHEN "metros" IS NOT NULL AND "patologia" IS NOT NULL AND "patologia" != '' THEN "metros" || 'm - ' || "patologia" ELSE NULL END, order_by:="metros"), @element IS NOT NULL), '\n') %]</div>
           </td>
         </tr>
       </table>

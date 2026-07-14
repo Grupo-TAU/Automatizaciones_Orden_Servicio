@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  SCRIPT: cargar_os_Futuro.py                                                 ║
 ║  Descripción: Registra la OS recibida por correo en la capa                  ║
-║               inspecciones_nuevas_OS. El punto se ubica haciendo clic en el  ║
+║               inspecciones_OS. El punto se ubica haciendo clic en el  ║
 ║               mapa de QGIS. Soporta carga automática desde el PDF de la IM.  ║
 ║  Uso: Consola Python de QGIS                                                 ║
 ║  Autor: Grupo TAU – DICA                                                     ║
@@ -41,7 +41,7 @@ from PyQt5.QtGui import QFont
 # ─────────────────────────────────────────────────────────────────────────────
 
 RAIZ_IMAGENES  = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\SOMS\IMAGENES_OS"
-CAPA_OS        = "inspecciones_nuevas_OS"
+CAPA_OS        = "inspecciones_OS"
 CAPA_PADRONES  = "padrones"
 CAMPO_PADRON   = "padron"
 
@@ -51,7 +51,9 @@ CAMPOS_PASO1 = [
     ("Fecha_Ingreso", QVariant.Date),
     ("Descripción",   QVariant.String),
     ("N_Problema",    QVariant.String),
-    ("Sector",        QVariant.String),
+    ("Contrato",      QVariant.String),
+    ("N° Trabajo",    QVariant.String),
+    ("Tipo",          QVariant.String),
     ("Etapa",         QVariant.String),
     ("Restringir",    QVariant.String),
 ]
@@ -131,6 +133,11 @@ def parsear_pdf_os(ruta_pdf):
         m = re.search(r'Sector:\s*(.+?)\s*Generada', texto, re.DOTALL)
         if m:
             datos['sector'] = re.sub(r'\s+', ' ', m.group(1)).strip()
+
+        # ── Tipo — entre "Tipo:" y "Grupo:" ─────────────────────────────
+        m = re.search(r'Tipo:\s*(.+?)\s*Grupo:', texto, re.DOTALL)
+        if m:
+            datos['tipo'] = re.sub(r'\s+', ' ', m.group(1)).strip()
 
     return datos
 
@@ -284,17 +291,22 @@ class DialogoRegistroOS(QDialog):
 
         self.f_orden_servicio = self._campo("ej: 5337775")
         self.f_fecha_ingreso  = self._campo("dd/mm/aaaa")
+        self.f_fecha_ingreso.setText(QDate.currentDate().toString("dd/MM/yyyy"))
         self.f_ubicacion      = self._campo("ej: 25 DE MAYO Nº 259")
         self.f_descripcion    = self._campo("ej: Inspección cámara televisada")
         self.f_n_problema     = self._campo("ej: 123456")
-        self.f_sector         = self._campo("ej: Baderery-Giberol")
+        self.f_contrato       = self._campo("ej: Baderery-Giberol")
+        self.f_n_trabajo      = self._campo("ej: 12345")
+        self.f_tipo           = self._campo("ej: Reclamo")
 
         form.addRow("Orden de Servicio:", self.f_orden_servicio)
         form.addRow("Fecha ingreso:",     self.f_fecha_ingreso)
         form.addRow("Ubicación:",         self.f_ubicacion)
         form.addRow("Descripción:",       self.f_descripcion)
         form.addRow("N° Problema:",       self.f_n_problema)
-        form.addRow("Sector:",            self.f_sector)
+        form.addRow("Contrato:",            self.f_contrato)
+        form.addRow("N° Trabajo:",        self.f_n_trabajo)
+        form.addRow("Tipo:",              self.f_tipo)
         layout.addWidget(grp)
 
         # ── Botones ──────────────────────────────────────────────────────
@@ -360,7 +372,8 @@ class DialogoRegistroOS(QDialog):
             'descripcion':    self.f_descripcion,
             'ubicacion':      self.f_ubicacion,
             'n_problema':     self.f_n_problema,
-            'sector':         self.f_sector,
+            'sector':         self.f_contrato,
+            'tipo':           self.f_tipo,
         }
         for clave, widget in setters.items():
             if clave in datos:
@@ -412,10 +425,17 @@ class DialogoRegistroOS(QDialog):
             "Fecha_Ingreso": self.f_fecha_ingreso.text().strip(),
             "Descripción":   self.f_descripcion.text().strip(),
             "N_Problema":    self.f_n_problema.text().strip(),
-            "Sector":        self.f_sector.text().strip(),
+            "Contrato":      self.f_contrato.text().strip(),
+            "Tipo":          self.f_tipo.text().strip(),
             "Etapa":         "Pendiente",
             "Restringir":    "Si",
         }
+
+        # "N° Trabajo" se ingresa a mano; si se deja vacío, se respeta la
+        # expresión por defecto de la capa (ej: maximum("N° Trabajo") + 1).
+        n_trabajo = self.f_n_trabajo.text().strip()
+        if n_trabajo:
+            datos["N° Trabajo"] = n_trabajo
 
         try:
             agregar_feature_os(datos, self.punto_xy)
