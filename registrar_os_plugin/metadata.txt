@@ -1,0 +1,26 @@
+[general]
+name=Registrar OS
+qgisMinimumVersion=3.28
+description=Registro de Ordenes de Servicio (SOMS - IM) con captura de punto en el mapa y carga automatica desde PDF
+version=1.0
+author=Grupo TAU
+email=
+
+about=Registra la OS recibida por correo en la capa inspecciones_OS. El punto se ubica haciendo clic en el mapa de QGIS o automaticamente por padron si se carga el PDF del SOMS (requiere pdfplumber).
+
+tracker=https://github.com/Grupo-TAU/registrar_os_plugin/issues
+repository=https://github.com/Grupo-TAU/registrar_os_plugin
+
+hasProcessingProvider=no
+
+tags=saneamiento,OS,SOMS,inspecciones,IM
+
+homepage=https://www.grupotau.uy/
+category=Plugins
+icon=icon.png
+
+experimental=False
+deprecated=False
+server=False
+
+changelog=1.0 - Version inicial migrada desde script standalone cargar_os.py
