@@ -224,7 +224,7 @@
     <!-- OBSERVACIONES -->
     <div class="section-block">
       <div class="section-header">Observaciones</div>
-      <div class="obs-box" style="height:70mm;">[% relation_aggregate('observaciones_os', 'concatenate', "metros" || 'm - ' || "descripcion", concatenator:='\n') %]</div>
+      <div class="obs-box" style="height:70mm;">[% coalesce("introduccion", '') || '\n\n' || array_to_string(array_filter(relation_aggregate('observaciones_os', 'array_agg', CASE WHEN "metros" IS NOT NULL AND "descripcion" IS NOT NULL AND "descripcion" != '' THEN "metros" || 'm - ' || "descripcion" ELSE NULL END, order_by:="metros"), @element IS NOT NULL), '\n') %]</div>
     </div>
 
     <!-- CONCLUSIONES -->
