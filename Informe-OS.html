@@ -231,14 +231,14 @@
           </td>
           <td style="vertical-align:top; padding:0;">
             <div class="section-header">Observaciones</div>
-            <div class="obs-box" style="height:70mm;">[% coalesce("introduccion", '') || '\n' || array_to_string(array_filter(relation_aggregate('fotos_os', 'array_agg', CASE WHEN "metros" IS NOT NULL AND "patologia" IS NOT NULL AND "patologia" != '' THEN "metros" || 'm - ' || "patologia"|| ' '|| "descripcion_foto" ELSE NULL END, order_by:="metros"), @element IS NOT NULL), '\n') %]</div>
+            <div class="obs-box" style="min-height:70mm;">[% coalesce("introduccion", '') || '\n' || array_to_string(array_filter(relation_aggregate('fotos_os', 'array_agg', CASE WHEN "metros" IS NOT NULL AND "patologia" IS NOT NULL AND "patologia" != '' THEN "metros" || 'm - ' || "patologia"|| ' '|| "descripcion_foto" ELSE NULL END, order_by:="metros"), @element IS NOT NULL), '\n') %]</div>
           </td>
         </tr>
       </table>
     </div>
 
     <!-- CONCLUSIONES -->
-    <div class="section-block">
+    <div class="section-block" style="margin-top:6mm;">
       <div class="section-header">Conclusiones</div>
       <div class="obs-box">[% "Conclusiones" %]</div>
     </div>
