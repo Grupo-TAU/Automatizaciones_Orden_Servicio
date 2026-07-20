@@ -21,6 +21,10 @@ CAPA_OS = "inspecciones_OS"
 CAPA_PADRONES = "padrones"
 CAMPO_PADRON = "padron"
 
+CAPA_FOTOS_OS = "fotos_os"
+CAMPO_FOTOS_OS_N_OS = "N°_OS"
+CAMPO_FOTOS_OS_RUTA = "ruta_relativa"
+
 CAMPOS_PASO1 = [
     ("N°_OS", QVariant.String),
     ("Ubicación", QVariant.String),
@@ -74,6 +78,28 @@ def buscar_punto_padron(numero_padron):
         punto = transformador.transform(punto)
 
     return punto
+
+
+def buscar_rutas_fotos_os(numero_os):
+    """
+    Devuelve la lista de rutas (campo CAMPO_FOTOS_OS_RUTA, que guarda la ruta
+    absoluta del archivo pese al nombre del campo) de las fotos asociadas a
+    numero_os en la capa CAPA_FOTOS_OS.
+    """
+    capa = obtener_capa(CAPA_FOTOS_OS)
+    if capa is None:
+        raise ValueError(f"No se encontró la capa '{CAPA_FOTOS_OS}' en el proyecto.")
+
+    idx = capa.fields().indexOf(CAMPO_FOTOS_OS_N_OS)
+    if idx < 0:
+        raise ValueError(f"La capa '{CAPA_FOTOS_OS}' no tiene el campo '{CAMPO_FOTOS_OS_N_OS}'.")
+
+    numero_os = str(numero_os).strip()
+    return [
+        f[CAMPO_FOTOS_OS_RUTA]
+        for f in capa.getFeatures()
+        if str(f[CAMPO_FOTOS_OS_N_OS]).strip() == numero_os and f[CAMPO_FOTOS_OS_RUTA]
+    ]
 
 
 def agregar_feature_os(datos, punto_xy):
