@@ -2,7 +2,7 @@
 name=Registrar OS
 qgisMinimumVersion=3.28
 description=Registro de Ordenes de Servicio (SOMS - IM) con captura de punto en el mapa y carga automatica desde PDF
-version=1.0
+version=1.1
 author=Grupo TAU
 email=
 
