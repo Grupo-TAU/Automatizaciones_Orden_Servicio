@@ -21,7 +21,7 @@ CAPA_OS = "inspecciones_OS"
 CAPA_PADRONES = "padrones"
 CAMPO_PADRON = "padron"
 
-CAPA_FOTOS_OS = "fotos_os"
+CAPA_FOTOS_OS = "fotos_OS"
 CAMPO_FOTOS_OS_N_OS = "N°_OS"
 CAMPO_FOTOS_OS_RUTA = "ruta_relativa"
 
