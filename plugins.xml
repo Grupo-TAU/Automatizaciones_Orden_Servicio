@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <plugins>
-  <pyqgis_plugin name="Registrar OS" version="1.1">
+  <pyqgis_plugin name="Registrar OS" version="1.2">
     <description>Registro de Ordenes de Servicio (SOMS - IM) con captura de punto en el mapa y carga automatica desde PDF</description>
-    <version>1.1</version>
+    <version>1.2</version>
     <qgis_minimum_version>3.28</qgis_minimum_version>
     <homepage>https://github.com/Grupo-TAU/Automatizaciones_Orden_Servicio</homepage>
     <download_url>https://raw.githubusercontent.com/Grupo-TAU/Automatizaciones_Orden_Servicio/main/Lanzamientos/registrar_os_plugin.zip</download_url>

@@ -24,6 +24,8 @@ CAMPO_PADRON = "padron"
 CAPA_FOTOS_OS = "fotos_OS"
 CAMPO_FOTOS_OS_N_OS = "N°_OS"
 CAMPO_FOTOS_OS_RUTA = "ruta_relativa"
+# CAMPO_FOTOS_OS_RUTA es relativa a esta carpeta.
+CARPETA_ORIGEN_FOTOS = r"C:\Proyectos-QGisCloud\QField\cloud\inspecciones_os"
 
 CAMPOS_PASO1 = [
     ("N°_OS", QVariant.String),
@@ -82,9 +84,9 @@ def buscar_punto_padron(numero_padron):
 
 def buscar_rutas_fotos_os(numero_os):
     """
-    Devuelve la lista de rutas (campo CAMPO_FOTOS_OS_RUTA, que guarda la ruta
-    absoluta del archivo pese al nombre del campo) de las fotos asociadas a
-    numero_os en la capa CAPA_FOTOS_OS.
+    Devuelve la lista de rutas (campo CAMPO_FOTOS_OS_RUTA, relativa a
+    CARPETA_ORIGEN_FOTOS) de las fotos asociadas a numero_os en la capa
+    CAPA_FOTOS_OS.
     """
     capa = obtener_capa(CAPA_FOTOS_OS)
     if capa is None:
