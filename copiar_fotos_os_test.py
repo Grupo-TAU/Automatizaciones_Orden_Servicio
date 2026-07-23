@@ -12,6 +12,7 @@ Sin argumentos, abre una ventana tkinter para elegir la OS a mano.
 
 import argparse
 import datetime
+import glob
 import os
 import shutil
 import sqlite3
@@ -20,21 +21,58 @@ import sys
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIGURACIÓN — CONFIRMAR contra el GeoPackage real antes de usar
 # ─────────────────────────────────────────────────────────────────────────────
-TABLA_OS = "inspecciones_OS"              # CONFIRMAR: nombre exacto de la tabla en el GeoPackage
+TABLA_OS = "inspecciones_nuevas_OS"              # CONFIRMAR: nombre exacto de la tabla en el GeoPackage
 CAMPO_N_OS = "N°_OS"                      # CONFIRMAR: nombre exacto del campo (incluye el carácter °)
 CAMPO_FECHA_COPIA = "fecha_copia_fotos"   # CONFIRMAR: columna a crear/actualizar en TABLA_OS
+CAMPO_CONTRATO = "Contrato"                # CONFIRMAR
+CAMPO_N_TRABAJO = "N° Trabajo"             # CONFIRMAR
+CAMPO_UBICACION = "Ubicación"              # CONFIRMAR
+CAMPO_N_PROBLEMA = "N_Problema"            # CONFIRMAR
 
 TABLA_FOTOS = "fotos_OS"                  # CONFIRMAR: tabla con una fila por foto
 CAMPO_FOTOS_N_OS = "N°_OS"                # CONFIRMAR: FK hacia la OS en TABLA_FOTOS
 CAMPO_RUTA_RELATIVA = "ruta_relativa"     # CONFIRMAR: campo con la ruta relativa del archivo
 
-NOMBRE_GPKG_DEFAULT = "inspecciones_OS.gpkg"  # CONFIRMAR: nombre real del GeoPackage
-CARPETA_ORIGEN_FOTOS = r"C:\Proyectos-QGisCloud\QField\cloud\inspecciones_OS\DCIM\FOTOS_OS"  # DCIM de QField
-CARPETA_DESTINO_BASE = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\01 - INSPECCIONES IM\02 - EN PROCESO\00 - INSPECCIONES\2026"  # CONFIRMAR: raíz del destino en Drive
+RUTA_GPKG_DEFAULT = r"C:\Proyectos-QGisCloud\QField\cloud\inspecciones_os\inspecciones_OS.gpkg"
+CARPETA_ORIGEN_FOTOS = r"C:\Proyectos-QGisCloud\QField\cloud\inspecciones_OS"  # ruta_relativa ya incluye DCIM\FOTOS_OS
+
+# mod_spatialite: lo necesitan los triggers del GeoPackage (mantienen el índice
+# espacial R-tree) incluso al actualizar una columna no geométrica. Se busca
+# automáticamente porque la versión de QGIS instalada varía entre PCs.
+PATRON_MOD_SPATIALITE = r"C:\Program Files\QGIS *\bin\mod_spatialite.dll"
+
+# Bases del destino en Drive — según la expresión QGIS existente, difiere por Contrato.
+# RUTA_BASE_DLR incluye el año actual (calculado al momento de correr, no al importar el módulo).
+RUTA_BASE_DLR = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\01 - INSPECCIONES IM\02 - EN PROCESO\00 - INSPECCIONES"
+RUTA_BASE_ZONA8 = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\02 - ZONA 8\02 - EN PROCESO\05 - SUR\0 - NUEVO SUR"
 
 
 def _ruta_gpkg_default():
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), NOMBRE_GPKG_DEFAULT)
+    return RUTA_GPKG_DEFAULT
+
+
+def _cargar_mod_spatialite(con):
+    """
+    Carga mod_spatialite en la conexión para que los triggers del GeoPackage
+    (ST_IsEmpty y similares, usados para mantener el índice R-tree) no fallen
+    con "no such function" al hacer UPDATE/ALTER TABLE.
+    """
+    candidatos = glob.glob(PATRON_MOD_SPATIALITE)
+    if not candidatos:
+        raise RuntimeError(
+            f"No se encontró mod_spatialite.dll (buscado en '{PATRON_MOD_SPATIALITE}'). "
+            "Ajustá PATRON_MOD_SPATIALITE a la instalación de QGIS de esta PC."
+        )
+    ruta_dll = candidatos[0]
+
+    carpeta_bin = os.path.dirname(ruta_dll)
+    os.environ["PATH"] = carpeta_bin + os.pathsep + os.environ.get("PATH", "")
+
+    con.enable_load_extension(True)
+    try:
+        con.load_extension(ruta_dll)
+    finally:
+        con.enable_load_extension(False)
 
 
 def _asegurar_columna_fecha(con):
@@ -59,21 +97,48 @@ def _marcar_procesada(con, n_os):
     )
 
 
+def _obtener_datos_os(con, n_os):
+    """Devuelve (contrato, n_trabajo, ubicacion, n_problema) para n_os, o None si no existe."""
+    cur = con.execute(
+        f'SELECT "{CAMPO_CONTRATO}", "{CAMPO_N_TRABAJO}", "{CAMPO_UBICACION}", "{CAMPO_N_PROBLEMA}" '
+        f'FROM "{TABLA_OS}" WHERE "{CAMPO_N_OS}" = ?',
+        (n_os,),
+    )
+    return cur.fetchone()
+
+
+def calcular_carpeta_destino(contrato, n_trabajo, ubicacion, n_problema) -> str:
+    """
+    Replica la expresión QGIS existente para la carpeta destino en Drive,
+    que difiere según el Contrato de la OS.
+    """
+    if contrato == "DLR":
+        nombre = f"{(n_trabajo or '').strip()} - {(ubicacion or '').strip().replace(':', '')}"
+        return os.path.join(RUTA_BASE_DLR, str(datetime.datetime.now().year), nombre)
+    return os.path.join(RUTA_BASE_ZONA8, str(n_problema), "2- Inspección")
+
+
 def copiar_fotos_de_os(n_os: str, ruta_gpkg: str, carpeta_destino: str = None) -> dict:
     """
     Copia las fotos de la OS n_os desde CARPETA_ORIGEN_FOTOS hacia
-    carpeta_destino (o CARPETA_DESTINO_BASE/n_os si no se especifica), y
-    marca la OS como procesada en el GeoPackage si el copiado fue exitoso
-    (al menos una foto copiada y ningún error). Devuelve un resumen:
-    {'n_os', 'copiadas', 'errores', 'ok'}.
+    carpeta_destino (calculado con calcular_carpeta_destino si no se
+    especifica), y marca la OS como procesada en el GeoPackage si el
+    copiado fue exitoso (al menos una foto copiada y ningún error).
+    Devuelve un resumen: {'n_os', 'copiadas', 'errores', 'ok'}.
     """
     resumen = {"n_os": n_os, "copiadas": 0, "errores": 0, "ok": False}
-    destino = carpeta_destino or os.path.join(CARPETA_DESTINO_BASE, str(n_os))
 
     try:
         con = sqlite3.connect(ruta_gpkg, timeout=10)
     except sqlite3.OperationalError as e:
         print(f"No se pudo abrir el GeoPackage '{ruta_gpkg}' (¿bloqueado?): {e}", file=sys.stderr)
+        return resumen
+
+    try:
+        _cargar_mod_spatialite(con)
+    except Exception as e:
+        print(f"No se pudo cargar mod_spatialite: {e}", file=sys.stderr)
+        con.close()
         return resumen
 
     try:
@@ -84,6 +149,14 @@ def copiar_fotos_de_os(n_os: str, ruta_gpkg: str, carpeta_destino: str = None) -
         if not rutas:
             print(f"No se encontraron fotos para la OS {n_os} en '{TABLA_FOTOS}'.", file=sys.stderr)
             return resumen
+
+        destino = carpeta_destino
+        if destino is None:
+            datos_os = _obtener_datos_os(con, n_os)
+            if datos_os is None:
+                print(f"No se encontró la OS {n_os} en '{TABLA_OS}'; no se pudo calcular el destino.", file=sys.stderr)
+                return resumen
+            destino = calcular_carpeta_destino(*datos_os)
 
         os.makedirs(destino, exist_ok=True)
 
@@ -100,8 +173,16 @@ def copiar_fotos_de_os(n_os: str, ruta_gpkg: str, carpeta_destino: str = None) -
 
         resumen["ok"] = resumen["copiadas"] > 0 and resumen["errores"] == 0
         if resumen["ok"]:
-            _marcar_procesada(con, n_os)
-            con.commit()
+            try:
+                _marcar_procesada(con, n_os)
+                con.commit()
+            except sqlite3.OperationalError as e:
+                resumen["ok"] = False
+                print(
+                    f"Fotos copiadas pero no se pudo marcar '{CAMPO_FECHA_COPIA}' "
+                    f"(¿el GeoPackage está abierto/en edición en QGIS?): {e}",
+                    file=sys.stderr,
+                )
 
     except sqlite3.OperationalError as e:
         print(f"Error de base de datos sobre '{ruta_gpkg}' (¿GeoPackage bloqueado?): {e}", file=sys.stderr)
