@@ -12,7 +12,9 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont, QCursor
 
 from .capa_utils import RAIZ_IMAGENES, buscar_punto_padron, agregar_feature_os, CAPA_PADRONES
-from .pdf_parser import parsear_pdf_os, pdfplumber_disponible, instalar_pdfplumber
+from .pdf_parser import (
+    parsear_pdf_os, parsear_pdf_itinerario, pdfplumber_disponible, instalar_pdfplumber,
+)
 
 
 class _CapturadorPunto(QgsMapToolEmitPoint):
@@ -31,6 +33,9 @@ class DialogoRegistroOS(QDialog):
         self.punto_xy = None
         self._capturador = None
         self._herramienta_previa = None
+        self._cola_itinerario = []  # datos de las OS pendientes (excluye la que está en pantalla)
+        self._total_itinerario = 0  # 0 = no se está cargando un itinerario
+        self._nombre_itinerario = ""
         self._build_ui()
 
     def _campo(self, placeholder=""):
@@ -74,9 +79,20 @@ class DialogoRegistroOS(QDialog):
             "QPushButton:hover{background:#3e6a2c;}"
         )
         btn_pdf.clicked.connect(self._cargar_pdf)
+
+        btn_itinerario = QPushButton("Cargar Itinerario (varias OS)…")
+        btn_itinerario.setMinimumHeight(30)
+        btn_itinerario.setStyleSheet(
+            "QPushButton{background:#5a3d8a;color:white;font-weight:bold;"
+            "border-radius:3px;padding:0 14px;}"
+            "QPushButton:hover{background:#6f4ba8;}"
+        )
+        btn_itinerario.clicked.connect(self._cargar_itinerario)
+
         self.lbl_pdf = QLabel("Sin PDF seleccionado")
         self.lbl_pdf.setStyleSheet("color:#666; font-style:italic;")
         h_pdf.addWidget(btn_pdf)
+        h_pdf.addWidget(btn_itinerario)
         h_pdf.addWidget(self.lbl_pdf, 1)
 
         self.btn_instalar_dep = QPushButton("Instalar dependencia (pdfplumber)…")
@@ -85,6 +101,13 @@ class DialogoRegistroOS(QDialog):
         h_pdf.addWidget(self.btn_instalar_dep)
 
         layout.addWidget(grp_pdf)
+
+        self.lbl_progreso_itinerario = QLabel("")
+        self.lbl_progreso_itinerario.setStyleSheet(
+            "color:#5a3d8a; font-weight:bold; font-style:italic;"
+        )
+        self.lbl_progreso_itinerario.setVisible(False)
+        layout.addWidget(self.lbl_progreso_itinerario)
 
         # ── Datos ────────────────────────────────────────────────────────
         grp = QGroupBox("Datos de la OS")
@@ -177,6 +200,50 @@ class DialogoRegistroOS(QDialog):
             )
 
     # ── Carga desde PDF ──────────────────────────────────────────────────────
+    def _limpiar_formulario(self):
+        for widget in (
+            self.f_orden_servicio, self.f_ubicacion, self.f_descripcion,
+            self.f_n_problema, self.f_contrato, self.f_n_trabajo, self.f_tipo,
+        ):
+            widget.clear()
+        self.f_fecha_ingreso.setText(QDate.currentDate().toString("dd/MM/yyyy"))
+        self.punto_xy = None
+        self.lbl_punto.setText("Sin punto seleccionado")
+        self.lbl_punto.setStyleSheet("color:#999; font-style:italic;")
+
+    def _aplicar_datos_a_formulario(self, datos):
+        """
+        Completa los campos con datos parseados de un PDF y, si hay padrón,
+        intenta ubicar el punto automáticamente. Devuelve True si el punto
+        quedó ubicado.
+        """
+        setters = {
+            'orden_servicio': self.f_orden_servicio,
+            'fecha_ingreso': self.f_fecha_ingreso,
+            'descripcion': self.f_descripcion,
+            'ubicacion': self.f_ubicacion,
+            'n_problema': self.f_n_problema,
+            'sector': self.f_contrato,
+            'tipo': self.f_tipo,
+        }
+        for clave, widget in setters.items():
+            if clave in datos:
+                widget.setText(datos[clave])
+
+        if 'padron' not in datos:
+            return False
+
+        punto = buscar_punto_padron(datos['padron'])
+        if punto is None:
+            return False
+
+        self.punto_xy = punto
+        self.lbl_punto.setText(
+            f"X: {punto.x():.2f} | Y: {punto.y():.2f} (Padrón {datos['padron']} — automático)"
+        )
+        self.lbl_punto.setStyleSheet("color:green; font-weight:bold;")
+        return True
+
     def _cargar_pdf(self):
         ruta_pdf, _ = QFileDialog.getOpenFileName(
             self, "Seleccionar PDF de la OS", RAIZ_IMAGENES, "PDF (*.pdf *.PDF)"
@@ -193,39 +260,71 @@ class DialogoRegistroOS(QDialog):
             QMessageBox.warning(self, "Error al leer el PDF", str(e))
             return
 
-        setters = {
-            'orden_servicio': self.f_orden_servicio,
-            'fecha_ingreso': self.f_fecha_ingreso,
-            'descripcion': self.f_descripcion,
-            'ubicacion': self.f_ubicacion,
-            'n_problema': self.f_n_problema,
-            'sector': self.f_contrato,
-            'tipo': self.f_tipo,
-        }
-        for clave, widget in setters.items():
-            if clave in datos:
-                widget.setText(datos[clave])
+        ubicado = self._aplicar_datos_a_formulario(datos)
 
         self.lbl_pdf.setText(f"✓ {os.path.basename(ruta_pdf)}")
         self.lbl_pdf.setStyleSheet("color:green; font-weight:bold;")
 
-        # ── Ubicar el punto automáticamente a partir del padrón ────────────
-        if 'padron' in datos:
-            punto = buscar_punto_padron(datos['padron'])
-            if punto is not None:
-                self.punto_xy = punto
-                self.lbl_punto.setText(
-                    f"X: {punto.x():.2f} | Y: {punto.y():.2f} "
-                    f"(Padrón {datos['padron']} — automático)"
-                )
-                self.lbl_punto.setStyleSheet("color:green; font-weight:bold;")
-            else:
-                QMessageBox.warning(
-                    self, "Padrón no ubicado",
-                    f"No se encontró (o hay más de una coincidencia para) el "
-                    f"padrón {datos['padron']} en la capa '{CAPA_PADRONES}'.\n\n"
-                    "Hacé clic manualmente en el mapa para ubicar la OS."
-                )
+        if 'padron' in datos and not ubicado:
+            QMessageBox.warning(
+                self, "Padrón no ubicado",
+                f"No se encontró (o hay más de una coincidencia para) el "
+                f"padrón {datos['padron']} en la capa '{CAPA_PADRONES}'.\n\n"
+                "Hacé clic manualmente en el mapa para ubicar la OS."
+            )
+
+    # ── Carga desde PDF de Itinerario (varias OS) ─────────────────────────────
+    def _cargar_itinerario(self):
+        ruta_pdf, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar PDF de Itinerario", RAIZ_IMAGENES, "PDF (*.pdf *.PDF)"
+        )
+        if not ruta_pdf:
+            return
+
+        try:
+            datos_lista = parsear_pdf_itinerario(ruta_pdf)
+        except ImportError as e:
+            QMessageBox.warning(self, "Librería faltante", str(e))
+            return
+        except Exception as e:
+            QMessageBox.warning(self, "Error al leer el PDF", str(e))
+            return
+
+        if not datos_lista:
+            QMessageBox.warning(
+                self, "Sin OS encontradas",
+                "No se pudo identificar ninguna Orden de Servicio en este PDF."
+            )
+            return
+
+        self._nombre_itinerario = os.path.basename(ruta_pdf)
+        self._total_itinerario = len(datos_lista)
+        self._cola_itinerario = datos_lista[1:]
+        self._cargar_item_de_cola(datos_lista[0])
+
+    def _cargar_item_de_cola(self, datos):
+        self._limpiar_formulario()
+        ubicado = self._aplicar_datos_a_formulario(datos)
+
+        indice = self._total_itinerario - len(self._cola_itinerario)
+        numero_os = datos.get('orden_servicio', '?')
+
+        self.lbl_progreso_itinerario.setText(
+            f"Itinerario: OS {indice} de {self._total_itinerario} (N° {numero_os}) "
+            f"— {self._nombre_itinerario}"
+        )
+        self.lbl_progreso_itinerario.setVisible(True)
+
+        self.lbl_pdf.setText(f"✓ {self._nombre_itinerario} — OS {indice}/{self._total_itinerario}")
+        self.lbl_pdf.setStyleSheet("color:green; font-weight:bold;")
+
+        if 'padron' in datos and not ubicado:
+            QMessageBox.warning(
+                self, "Padrón no ubicado",
+                f"OS {numero_os}: no se encontró (o hay más de una coincidencia para) "
+                f"el padrón {datos['padron']} en la capa '{CAPA_PADRONES}'.\n\n"
+                "Hacé clic manualmente en el mapa para ubicarla."
+            )
 
     # ── Validación ───────────────────────────────────────────────────────────
     def _validar(self):
@@ -272,11 +371,25 @@ class DialogoRegistroOS(QDialog):
         iface.mapCanvas().zoomScale(2000)
         iface.mapCanvas().refresh()
 
+        # ── Modo itinerario: si quedan OS en la cola, avanzar a la
+        # siguiente en vez de cerrar el diálogo ────────────────────────
+        if self._cola_itinerario:
+            QMessageBox.information(
+                self, "OS Registrada",
+                f"✓ OS {datos['N°_OS']} registrada.\n\n"
+                f"Quedan {len(self._cola_itinerario)} OS por cargar en este itinerario."
+            )
+            siguiente = self._cola_itinerario.pop(0)
+            self._cargar_item_de_cola(siguiente)
+            return
+
+        extra = "\n\n✓ Itinerario completo." if self._total_itinerario else ""
         QMessageBox.information(
             self, "OS Registrada",
             f"✓ OS {datos['N°_OS']} registrada correctamente.\n\n"
             f"  Ubicación : {datos['Ubicación']}\n"
             f"  Etapa     : Pendiente\n"
             f"  Restringir: Si"
+            f"{extra}"
         )
         self.accept()
