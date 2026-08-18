@@ -81,6 +81,18 @@ def _extraer_tipo(texto):
     return re.sub(r'\s+', ' ', m.group(1)).strip() if m else None
 
 
+def _extraer_fecha_ingreso(texto):
+    """
+    Timestamp de cabecera (pdfplumber lo extrae ANTES del título "Orden de
+    Servicio" en el texto crudo, aunque visualmente esté arriba a la
+    derecha). En el PDF individual es la fecha de esa OS puntual; en el de
+    itinerario es la fecha en que el itinerario completo (con todas sus OS)
+    llega a Grupo TAU — por eso ahí sale igual para todas las OS del lote.
+    """
+    m = re.search(r'(\d{2}/\d{2}/\d{4})\s+\d{2}:\d{2}.*?Orden de Servicio', texto, re.DOTALL)
+    return m.group(1) if m else None
+
+
 def parsear_pdf_os(ruta_pdf):
     """
     Extrae los datos de la OS desde el PDF individual (el que llega por correo
@@ -99,11 +111,9 @@ def parsear_pdf_os(ruta_pdf):
     if m:
         datos['orden_servicio'] = m.group(1)
 
-    # ── Fecha_Ingreso — timestamp arriba a la derecha (antes del título,
-    # presente en ambos tipos de OS) ───────────────────────────────
-    m = re.search(r'(\d{2}/\d{2}/\d{4})\s+\d{2}:\d{2}.*?Orden de Servicio', texto, re.DOTALL)
-    if m:
-        datos['fecha_ingreso'] = m.group(1)
+    fecha_ingreso = _extraer_fecha_ingreso(texto)
+    if fecha_ingreso:
+        datos['fecha_ingreso'] = fecha_ingreso
 
     # ── Descripción — entre "Observación:" y "Problema Nº:" ───────────
     m = re.search(r'Observaci[oó]n:\s*(.+?)\s*Problema\s*N[°º]:', texto, re.DOTALL)
@@ -170,12 +180,11 @@ def parsear_pdf_itinerario(ruta_pdf):
     for numero_os, texto in grupos:
         datos = {'orden_servicio': numero_os}
 
-        # ── Fecha_Ingreso — acá es "Generada el:", no el timestamp de
-        # cabecera (ese es la fecha de impresión del itinerario completo,
-        # se repite igual en todas las páginas) ─────────────────────────
-        m = re.search(r'Generada el:\s*(\d{2}/\d{2}/\d{4})', texto)
-        if m:
-            datos['fecha_ingreso'] = m.group(1)
+        # Fecha_Ingreso da el mismo timestamp de cabecera para todas las OS
+        # de este itinerario a propósito (llegan todas juntas a Grupo TAU).
+        fecha_ingreso = _extraer_fecha_ingreso(texto)
+        if fecha_ingreso:
+            datos['fecha_ingreso'] = fecha_ingreso
 
         # ── Descripción — casi siempre vacía en este formato; se deja
         # vacía si no hay contenido real entre los marcadores ────────────
