@@ -7,7 +7,7 @@ from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QPushButton, QFileDialog,
-    QMessageBox, QGroupBox, QApplication,
+    QMessageBox, QGroupBox, QApplication, QComboBox,
 )
 from PyQt5.QtGui import QFont, QCursor
 
@@ -123,6 +123,8 @@ class DialogoRegistroOS(QDialog):
         self.f_contrato = self._campo("ej: Baderery-Giberol")
         self.f_n_trabajo = self._campo("ej: 12345")
         self.f_tipo = self._campo("ej: Reclamo")
+        self.f_etapa = QComboBox()
+        self.f_etapa.addItems(["Pendiente", "Limpieza"])
 
         form.addRow("Orden de Servicio:", self.f_orden_servicio)
         form.addRow("Fecha ingreso:", self.f_fecha_ingreso)
@@ -132,6 +134,7 @@ class DialogoRegistroOS(QDialog):
         form.addRow("Contrato:", self.f_contrato)
         form.addRow("N° Trabajo:", self.f_n_trabajo)
         form.addRow("Tipo:", self.f_tipo)
+        form.addRow("Etapa:", self.f_etapa)
         layout.addWidget(grp)
 
         # ── Botones ──────────────────────────────────────────────────────
@@ -207,6 +210,7 @@ class DialogoRegistroOS(QDialog):
         ):
             widget.clear()
         self.f_fecha_ingreso.setText(QDate.currentDate().toString("dd/MM/yyyy"))
+        self.f_etapa.setCurrentIndex(0)
         self.punto_xy = None
         self.lbl_punto.setText("Sin punto seleccionado")
         self.lbl_punto.setStyleSheet("color:#999; font-style:italic;")
@@ -351,7 +355,7 @@ class DialogoRegistroOS(QDialog):
             "N_Problema": self.f_n_problema.text().strip(),
             "Contrato": self.f_contrato.text().strip(),
             "Tipo": self.f_tipo.text().strip(),
-            "Etapa": "Pendiente",
+            "Etapa": self.f_etapa.currentText(),
             "Restringir": "Si",
         }
 
@@ -388,7 +392,7 @@ class DialogoRegistroOS(QDialog):
             self, "OS Registrada",
             f"✓ OS {datos['N°_OS']} registrada correctamente.\n\n"
             f"  Ubicación : {datos['Ubicación']}\n"
-            f"  Etapa     : Pendiente\n"
+            f"  Etapa     : {datos['Etapa']}\n"
             f"  Restringir: Si"
             f"{extra}"
         )
