@@ -153,6 +153,18 @@
     padding-top: 3px;
     display: block;
   }
+  .fig-label-bar {
+    font-family: 'Barlow Condensed', Arial Narrow, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    background-color: rgb(50, 84, 35);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 3px 4px;
+    margin-top: 4px;
+  }
 
   /* ── Estado badge ── */
   .badge {
@@ -243,15 +255,13 @@
       <div class="obs-box">[% "Conclusiones" %]</div>
     </div>
 
-    <!-- REGISTRO FOTOGRÁFICO -->
+    <!-- REGISTRO FOTOGRÁFICO — General / Tapa / Cámara, siempre las 3.
+         Resuelto enteramente con ítems nativos del Atlas (Imagen 1/2/3 +
+         Etiqueta 1/2/3), NO acá en el HTML — ver expresiones ordenadas
+         que evitan depender del orden de subida de las fotos. -->
     <div class="section-block">
       <div class="section-header">Registro fotográfico</div>
       <table class="img-grid">
-        <tr>
-          <td><div class="img-wrap"></div></td>
-          <td><div class="img-wrap"></div></td>
-          <td><div class="img-wrap"></div></td>
-        </tr>
         <tr>
           <td><div class="img-wrap"></div></td>
           <td><div class="img-wrap"></div></td>
