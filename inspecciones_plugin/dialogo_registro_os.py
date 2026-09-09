@@ -11,10 +11,20 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QCursor
 
-from .capa_utils import RAIZ_IMAGENES, buscar_punto_padron, agregar_feature_os, CAPA_PADRONES
+from .capa_utils import (
+    RAIZ_IMAGENES, buscar_punto_padron, agregar_feature_os, CAPA_PADRONES,
+    construir_clasificador_zona,
+)
 from .pdf_parser import (
     parsear_pdf_os, parsear_pdf_itinerario, pdfplumber_disponible, instalar_pdfplumber,
 )
+
+
+def _texto_zona(fuera):
+    """Traduce el resultado del clasificador (polaridad "fuera") a algo legible."""
+    if fuera is None:
+        return "sin clasificar"
+    return "fuera de zona" if fuera else "dentro de zona"
 
 
 class _CapturadorPunto(QgsMapToolEmitPoint):
@@ -36,6 +46,9 @@ class DialogoRegistroOS(QDialog):
         self._cola_itinerario = []  # datos de las OS pendientes (excluye la que está en pantalla)
         self._total_itinerario = 0  # 0 = no se está cargando un itinerario
         self._nombre_itinerario = ""
+        # Clasificador de zona reusado durante todo un itinerario: armarlo por
+        # cada OS releería las geometrías de la zona una vez por punto.
+        self._clasificador_zona = None
         self._build_ui()
 
     def _campo(self, placeholder=""):
@@ -301,6 +314,7 @@ class DialogoRegistroOS(QDialog):
             )
             return
 
+        self._clasificador_zona = construir_clasificador_zona()
         self._nombre_itinerario = os.path.basename(ruta_pdf)
         self._total_itinerario = len(datos_lista)
         self._cola_itinerario = datos_lista[1:]
@@ -366,7 +380,9 @@ class DialogoRegistroOS(QDialog):
             datos["N° Trabajo"] = n_trabajo
 
         try:
-            agregar_feature_os(datos, self.punto_xy)
+            fuera = agregar_feature_os(
+                datos, self.punto_xy, fuera_zona=self._clasificador_zona
+            )
         except Exception as e:
             QMessageBox.critical(self, "Error al registrar en QGIS", str(e))
             return
@@ -380,7 +396,7 @@ class DialogoRegistroOS(QDialog):
         if self._cola_itinerario:
             QMessageBox.information(
                 self, "OS Registrada",
-                f"✓ OS {datos['N°_OS']} registrada.\n\n"
+                f"✓ OS {datos['N°_OS']} registrada ({_texto_zona(fuera)}).\n\n"
                 f"Quedan {len(self._cola_itinerario)} OS por cargar en este itinerario."
             )
             siguiente = self._cola_itinerario.pop(0)
@@ -393,7 +409,8 @@ class DialogoRegistroOS(QDialog):
             f"✓ OS {datos['N°_OS']} registrada correctamente.\n\n"
             f"  Ubicación : {datos['Ubicación']}\n"
             f"  Etapa     : {datos['Etapa']}\n"
-            f"  Restringir: Si"
+            f"  Restringir: Si\n"
+            f"  Zona      : {_texto_zona(fuera)}"
             f"{extra}"
         )
         self.accept()

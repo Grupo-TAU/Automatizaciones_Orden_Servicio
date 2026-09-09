@@ -101,7 +101,7 @@ class DialogoConteo(QDialog):
             QMessageBox.critical(self, "No se pudo contar", str(e))
             return
 
-        texto = sacar_numeros.formatear_matriz(resultado, titulo)
+        texto = sacar_numeros.formatear_reporte(resultado, titulo)
         if self.chk_detalle.isChecked():
             texto += "\n\n" + sacar_numeros.formatear_detalle(resultado)
         self.salida.setPlainText(texto)

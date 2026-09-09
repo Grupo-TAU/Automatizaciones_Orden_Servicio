@@ -24,7 +24,7 @@ class InspeccionesPlugin:
         # diario, las otras dos se usan de a ratos y viven solo en el menú.
         self._agregar_accion(icon, "Registrar OS", self.run, en_barra=True)
         self._agregar_accion(icon, "Copiar imágenes de OS", self.run_copiar_imagenes)
-        self._agregar_accion(icon, "Números de inspecciones", self.run_conteo)
+        self._agregar_accion(icon, "Números de inspecciones", self.run_conteo, en_barra=True)
 
     def _agregar_accion(self, icon, titulo, callback, en_barra=False):
         accion = QAction(icon, titulo, self.iface.mainWindow())
