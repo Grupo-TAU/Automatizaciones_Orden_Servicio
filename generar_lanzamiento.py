@@ -1,5 +1,5 @@
 """
-Publica una nueva versión del plugin registrar_os_plugin.
+Publica una nueva versión del plugin inspecciones_plugin (nombre visible: "Inspecciones").
 
 metadata.txt es la única fuente de verdad de la versión (y de las versiones
 mínima/máxima de QGIS). Este script deriva plugins.xml de ahí — no edites
@@ -9,7 +9,7 @@ Uso, después de cada edición al plugin y antes de pushear:
     python generar_lanzamiento.py --lanzamiento
 
 Hace todo el ciclo:
-  1. Empaqueta registrar_os_plugin/ en Lanzamientos/registrar_os_plugin.zip,
+  1. Empaqueta inspecciones_plugin/ en Lanzamientos/inspecciones_plugin.zip,
      con la carpeta del plugin en la raíz del zip (formato que espera QGIS).
   2. Escribe el zip con nombre fijo (sin número de versión: el download_url
      de plugins.xml es una URL estática).
@@ -27,10 +27,10 @@ import sys
 import zipfile
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
-CARPETA_PLUGIN = os.path.join(RAIZ, "registrar_os_plugin")
+CARPETA_PLUGIN = os.path.join(RAIZ, "inspecciones_plugin")
 NOMBRE_CARPETA_PLUGIN = os.path.basename(CARPETA_PLUGIN)
 CARPETA_LANZAMIENTOS = os.path.join(RAIZ, "Lanzamientos")
-ZIP_DESTINO = os.path.join(CARPETA_LANZAMIENTOS, "registrar_os_plugin.zip")
+ZIP_DESTINO = os.path.join(CARPETA_LANZAMIENTOS, "inspecciones_plugin.zip")
 PLUGINS_XML = os.path.join(RAIZ, "plugins.xml")
 METADATA_TXT = os.path.join(CARPETA_PLUGIN, "metadata.txt")
 
@@ -39,7 +39,7 @@ EXCLUIR_EXTENSIONES = (".pyc", ".pyo")
 EXCLUIR_CARPETAS = {"__pycache__", ".git"}
 EXCLUIR_SUFIJOS = ("~",)
 
-# Paquetes propios que el plugin importa desde FUERA de registrar_os_plugin/
+# Paquetes propios que el plugin importa desde FUERA de inspecciones_plugin/
 # (un "core" compartido, por ejemplo). QGIS solo copia la carpeta del plugin
 # al perfil del usuario, así que tienen que viajar vendorizados adentro.
 # Hoy el plugin no depende de ninguno; si se agrega uno, sumar acá el nombre
