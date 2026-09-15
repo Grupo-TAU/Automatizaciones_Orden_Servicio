@@ -5,14 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Informe OS {{ORDEN_SERVICIO}} — {{UBICACION}}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap');
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: 'Barlow', Arial, sans-serif;
+    font-family: Arial, sans-serif;
     background: #ffffff;
-    color: #2c3e50;
+    color: #4a5c70;
     font-size: 14.5px;
   }
 
@@ -37,7 +35,7 @@
 
   /* ── Cabecera de sección ── */
   .section-header {
-    font-family: 'Barlow Condensed', Arial Narrow, sans-serif;
+    font-family: 'Arial Narrow', Arial, sans-serif;
     font-weight: 700;
     font-size: 14px;
     letter-spacing: .12em;
@@ -70,7 +68,7 @@
     width: 110px;
   }
   .data-table td.value {
-    color: #222222;
+    color: #3f3f3f;
     background: #ffffff;
   }
 
@@ -97,7 +95,7 @@
     width: 80px;
   }
   .insp-table td.value {
-    color: #222222;
+    color: #3f3f3f;
     background: #ffffff;
   }
 
@@ -107,7 +105,7 @@
     padding: 8px 10px;
     font-size: 14.5px;
     line-height: 1.7;
-    color: #222222;
+    color: #3f3f3f;
     background: #ffffff;
     white-space: pre-line;
   }
@@ -144,7 +142,7 @@
     display: block;
   }
   .fig-label {
-    font-family: 'Barlow Condensed', Arial Narrow, sans-serif;
+    font-family: 'Arial Narrow', Arial, sans-serif;
     font-size: 14px;
     font-weight: 600;
     color: #6b7a8d;
@@ -154,7 +152,7 @@
     display: block;
   }
   .fig-label-bar {
-    font-family: 'Barlow Condensed', Arial Narrow, sans-serif;
+    font-family: 'Arial Narrow', Arial, sans-serif;
     font-size: 13px;
     font-weight: 700;
     color: #ffffff;
@@ -229,6 +227,8 @@
           <td class="value">[% "Operario" %]</td>
           <td class="label">Material</td>
           <td class="value">[% "Material" %]</td>
+          <td class="label">Limpieza</td>
+          <td class="value">[% "Limpieza" %]</td>
         </tr>
       </table>
     </div>

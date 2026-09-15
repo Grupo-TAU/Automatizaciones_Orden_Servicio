@@ -9,6 +9,12 @@
 </style>
 </head>
 <body>
+<!--
+  CROQUIS – CÁMARA DE INSPECCIÓN  |  ACERA CONTRARIA (colector en la vereda de enfrente)
+  Variante de Croquis_OS_Acera.html: acá el ramal de conexión cruza la calle
+  para llegar al colector, que está bajo la vereda opuesta a la del padrón.
+  Orden de franjas (izq → der): PADRÓN → VEREDA (propia) → CALLE → VEREDA CONTRARIA (colector)
+-->
 <svg width="82mm" height="70mm" viewBox="0 0 730 510"
      preserveAspectRatio="none"
      xmlns="http://www.w3.org/2000/svg">
@@ -49,106 +55,113 @@
 </g>
 
 <!-- ═══════════════════════════════════
-     ZONAS (fondos)
+     ZONAS (fondos)  —  PADRÓN | VEREDA | CALLE | VEREDA CONTRARIA
 ═══════════════════════════════════ -->
-<rect x="0"   y="57" width="243" height="351" fill="#DDDAD2"/>
-<rect x="243" y="57" width="243" height="351" fill="#EBE6D6"/>
-<rect x="486" y="57" width="244" height="351" fill="#ECF4E6"/>
+<rect x="0"   y="57" width="244" height="351" fill="#ECF4E6"/>
+<rect x="244" y="57" width="162" height="351" fill="#EBE6D6"/>
+<rect x="406" y="57" width="162" height="351" fill="#DDDAD2"/>
+<rect x="568" y="57" width="162" height="351" fill="#EBE6D6"/>
 
 <!-- ═══════════════════════════════════
      LÍNEAS DE BORDE DE ZONA
 ═══════════════════════════════════ -->
-<line x1="243" y1="57" x2="243" y2="408" stroke="#333" stroke-width="2.5"/>
-<line x1="486" y1="57" x2="486" y2="408"
+<!-- Límite de padrón (línea legal, no física) -->
+<line x1="244" y1="57" x2="244" y2="408"
       stroke="#3D6B20" stroke-width="2.5" stroke-dasharray="10,5"/>
+<!-- Cordón vereda propia / calle -->
+<line x1="406" y1="57" x2="406" y2="408" stroke="#333" stroke-width="2.5"/>
+<!-- Cordón calle / vereda contraria -->
+<line x1="568" y1="57" x2="568" y2="408" stroke="#333" stroke-width="2.5"/>
 
 <!-- ═══════════════════════════════════
      ETIQUETAS DE ZONA
 ═══════════════════════════════════ -->
-<text x="121" y="240" text-anchor="middle"
-      font-size="13" fill="#AAAAAA" font-style="italic">CALLE</text>
-<text x="365" y="118" text-anchor="middle"
-      font-size="15" fill="#C0B89C" font-style="italic">VEREDA</text>
-<text x="490" y="74"
+<text x="240" y="74" text-anchor="end"
       font-size="10" fill="#3D6B20" font-style="italic">LÍM. PADRÓN</text>
-<text x="608" y="88" text-anchor="middle"
+<text x="122" y="88" text-anchor="middle"
       font-size="16" fill="#5E9040" opacity="0.65" font-style="italic">PADRÓN</text>
+<text x="325" y="118" text-anchor="middle"
+      font-size="15" fill="#C0B89C" font-style="italic">VEREDA</text>
+<text x="487" y="240" text-anchor="middle"
+      font-size="13" fill="#AAAAAA" font-style="italic">CALLE</text>
+<text x="649" y="118" text-anchor="middle"
+      font-size="13" fill="#C0B89C" font-style="italic">VEREDA CONTRARIA</text>
 
 <!-- ═══════════════════════════════════
-     COLECTOR EN VEREDA  (centro de la franja)
+     COLECTOR EN VEREDA CONTRARIA  (centro de la franja)
 ═══════════════════════════════════ -->
-<line x1="365" y1="66" x2="365" y2="383" stroke="#2D2D2D" stroke-width="5"/>
-<circle cx="365" cy="72"  r="8" fill="white" stroke="#2D2D2D" stroke-width="2.5"/>
-<circle cx="365" cy="378" r="8" fill="white" stroke="#2D2D2D" stroke-width="2.5"/>
+<line x1="649" y1="66" x2="649" y2="383" stroke="#2D2D2D" stroke-width="5"/>
+<circle cx="649" cy="72"  r="8" fill="white" stroke="#2D2D2D" stroke-width="2.5"/>
+<circle cx="649" cy="378" r="8" fill="white" stroke="#2D2D2D" stroke-width="2.5"/>
 
-<!-- Ramal de conexión: colector vereda → cámara -->
-<line x1="365" y1="221" x2="548" y2="221" stroke="#444" stroke-width="3"/>
-<circle cx="365" cy="221" r="7" fill="#2D2D2D"/>
+<!-- Ramal de conexión: cámara → cruza la calle → colector -->
+<line x1="182" y1="221" x2="649" y2="221" stroke="#444" stroke-width="3"/>
+<circle cx="649" cy="221" r="7" fill="#2D2D2D"/>
 
-<!-- Ø – diámetro de la tubería -->
-<line x1="448" y1="208" x2="448" y2="236" stroke="#1A5276" stroke-width="2"/>
-<line x1="448" y1="221" x2="390" y2="221"
+<!-- Ø – diámetro de la tubería (cerca del colector) -->
+<line x1="566" y1="208" x2="566" y2="236" stroke="#1A5276" stroke-width="2"/>
+<line x1="566" y1="221" x2="624" y2="221"
       stroke="#1A5276" stroke-width="1.5" marker-end="url(#be)"/>
-<rect x="453" y="200" width="72" height="14" rx="2" fill="#EBE6D6" opacity="0.93"/>
-<text x="455" y="211" font-size="13" fill="#1A5276" font-weight="bold">Ø [% "Diametro_Conexion" %] mm</text>
+<rect x="494" y="200" width="72" height="14" rx="2" fill="#EBE6D6" opacity="0.93"/>
+<text x="496" y="211" font-size="13" fill="#1A5276" font-weight="bold">Ø [% "Diametro_Conexion" %] mm</text>
 
-<!-- L. Cnx. y Material -->
-<rect x="390" y="247" width="64" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
-<text x="398" y="261" font-size="10" fill="#1A5276" font-style="italic">L. Insp.</text>
-<text x="398" y="275" font-size="13" fill="#1A5276" font-weight="bold">[% "long_inspeccionada" %] m</text>
+<!-- Material y L. Insp. — sobre el ramal, sección calle -->
+<rect x="490" y="247" width="64" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="498" y="261" font-size="10" fill="#1A5276" font-style="italic">Material</text>
+<text x="498" y="275" font-size="11" fill="#1A5276" font-weight="bold">[% "Material" %]</text>
 
-<rect x="460" y="247" width="64" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
-<text x="468" y="261" font-size="10" fill="#1A5276" font-style="italic">Material</text>
-<text x="468" y="275" font-size="11" fill="#1A5276" font-weight="bold">[% "Material" %]</text>
+<rect x="560" y="247" width="64" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="568" y="261" font-size="10" fill="#1A5276" font-style="italic">L. Insp.</text>
+<text x="568" y="275" font-size="13" fill="#1A5276" font-weight="bold">[% "long_inspeccionada" %] m</text>
 
 <!-- ═══════════════════════════════════
      CÁMARA (vista en planta)
 ═══════════════════════════════════ -->
-<rect x="548" y="180" width="82" height="82"
+<rect x="100" y="180" width="82" height="82"
       fill="white" stroke="#1B3A52" stroke-width="3"/>
-<line x1="548" y1="180" x2="630" y2="262"
+<line x1="100" y1="180" x2="182" y2="262"
       stroke="#C0D8E8" stroke-width="1.5" stroke-dasharray="4,3"/>
-<line x1="630" y1="180" x2="548" y2="262"
+<line x1="182" y1="180" x2="100" y2="262"
       stroke="#C0D8E8" stroke-width="1.5" stroke-dasharray="4,3"/>
-<text x="589" y="227" text-anchor="middle"
+<text x="141" y="227" text-anchor="middle"
       font-size="14" fill="#1B3A52" font-weight="bold" opacity="0.55">C.I.</text>
 
 <!-- ═══════════════════════════════════
      COTA  Limite_Padron
 ═══════════════════════════════════ -->
-<line x1="486" y1="185" x2="486" y2="230"
+<line x1="182" y1="185" x2="182" y2="230"
       stroke="#A93226" stroke-width="1.5" stroke-dasharray="3,3"/>
-<line x1="548" y1="185" x2="548" y2="230"
+<line x1="244" y1="185" x2="244" y2="230"
       stroke="#A93226" stroke-width="1.5" stroke-dasharray="3,3"/>
-<line x1="488" y1="197" x2="546" y2="197"
+<line x1="184" y1="197" x2="242" y2="197"
       stroke="#A93226" stroke-width="2.2"
       marker-start="url(#rs)" marker-end="url(#re)"/>
-<rect x="488" y="181" width="66" height="14" rx="2" fill="#ECF4E6" opacity="0.95"/>
-<text x="517" y="192" text-anchor="middle"
+<rect x="180" y="181" width="66" height="14" rx="2" fill="#ECF4E6" opacity="0.95"/>
+<text x="213" y="192" text-anchor="middle"
       font-size="12" fill="#A93226" font-weight="bold">[% "Limite_Padron" %] m</text>
 
 <!-- ═══════════════════════════════════
      COTA  Long_Vereda
 ═══════════════════════════════════ -->
-<line x1="243" y1="298" x2="243" y2="326" stroke="#A93226" stroke-width="2.5"/>
-<line x1="486" y1="298" x2="486" y2="326" stroke="#A93226" stroke-width="2.5"/>
-<line x1="245" y1="312" x2="484" y2="312"
+<line x1="244" y1="298" x2="244" y2="326" stroke="#A93226" stroke-width="2.5"/>
+<line x1="406" y1="298" x2="406" y2="326" stroke="#A93226" stroke-width="2.5"/>
+<line x1="246" y1="312" x2="404" y2="312"
       stroke="#A93226" stroke-width="2"
       marker-start="url(#rs)" marker-end="url(#re)"/>
-<rect x="305" y="316" width="120" height="15" rx="2" fill="#EBE6D6" opacity="0.95"/>
-<text x="365" y="327" text-anchor="middle"
+<rect x="265" y="316" width="120" height="15" rx="2" fill="#EBE6D6" opacity="0.95"/>
+<text x="325" y="327" text-anchor="middle"
       font-size="13" fill="#A93226" font-weight="bold">[% "Long_Vereda" %] m</text>
 
 <!-- ═══════════════════════════════════
-     CALLOUTS DERECHA
+     CALLOUTS PADRÓN (junto a la cámara)
 ═══════════════════════════════════ -->
-<rect x="644" y="193" width="68" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
-<text x="652" y="207" font-size="10" fill="#1A5276" font-style="italic">Prof.</text>
-<text x="652" y="221" font-size="13" fill="#1A5276" font-weight="bold">[% "Profundidad" %] m</text>
+<rect x="18" y="193" width="68" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="26" y="207" font-size="10" fill="#1A5276" font-style="italic">Prof.</text>
+<text x="26" y="221" font-size="13" fill="#1A5276" font-weight="bold">[% "Profundidad" %] m</text>
 
-<rect x="644" y="231" width="68" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
-<text x="652" y="245" font-size="10" fill="#1A5276" font-style="italic">Diám.</text>
-<text x="652" y="259" font-size="13" fill="#1A5276" font-weight="bold">[% "Diametro_Conexion" %] mm</text>
+<rect x="18" y="231" width="68" height="32" rx="3" fill="white" stroke="#AACCDE" stroke-width="1.5"/>
+<text x="26" y="245" font-size="10" fill="#1A5276" font-style="italic">Diám.</text>
+<text x="26" y="259" font-size="13" fill="#1A5276" font-weight="bold">[% "Diametro_Conexion" %] mm</text>
 
 <!-- Nota -->
 <text x="14" y="399" font-size="9" fill="#BBB" font-style="italic">Sin escala · Vista en planta</text>
