@@ -6,6 +6,7 @@ Sin dependencias de UI: reutilizable desde la consola o desde tests.
 from qgis.core import (
     QgsProject,
     QgsFeature,
+    QgsFeatureRequest,
     QgsGeometry,
     QgsCoordinateTransform,
     QgsCsException,
@@ -20,6 +21,7 @@ from PyQt5.QtCore import QVariant, QDate
 RAIZ_IMAGENES = r"G:\Unidades compartidas\GRUPO TAU\INTENDENCIA DE MONTEVIDEO\SOMS\IMAGENES_OS"
 
 CAPA_OS = "inspecciones_OS"
+CAMPO_N_OS = "N°_OS"
 CAPA_PADRONES = "padrones"
 CAMPO_PADRON = "padron"
 
@@ -64,6 +66,34 @@ def obtener_capa(nombre):
         if capa.name().casefold() == objetivo:
             return capa
     return None
+
+
+def existe_n_os(numero):
+    """
+    True si ya hay un feature en CAPA_OS con ese CAMPO_N_OS.
+    Devuelve None si la capa no está en el proyecto o no tiene el campo:
+    en ese caso no hay con qué validar, y quien llama decide si bloquea
+    el alta o la deja pasar.
+
+    La restricción "unique" de QGIS solo se valida en el formulario de
+    atributos nativo; addFeature/commitChanges la saltean, por eso el chequeo
+    es manual.
+    """
+    capa = obtener_capa(CAPA_OS)
+    if capa is None:
+        return None
+    idx = capa.fields().lookupField(CAMPO_N_OS)
+    if idx < 0:
+        return None
+    numero = str(numero).strip()
+    if not numero:
+        return False
+    solicitud = (
+        QgsFeatureRequest()
+        .setSubsetOfAttributes([idx])
+        .setFlags(QgsFeatureRequest.NoGeometry)
+    )
+    return any(str(f[idx]).strip() == numero for f in capa.getFeatures(solicitud))
 
 
 def buscar_punto_padron(numero_padron):

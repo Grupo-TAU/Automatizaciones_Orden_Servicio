@@ -13,7 +13,7 @@ from PyQt5.QtGui import QFont, QCursor
 
 from .capa_utils import (
     RAIZ_IMAGENES, buscar_punto_padron, agregar_feature_os, CAPA_PADRONES,
-    construir_clasificador_zona,
+    construir_clasificador_zona, existe_n_os,
 )
 from .pdf_parser import (
     parsear_pdf_os, parsear_pdf_itinerario, pdfplumber_disponible, instalar_pdfplumber,
@@ -349,8 +349,14 @@ class DialogoRegistroOS(QDialog):
         errores = []
         if self.punto_xy is None:
             errores.append("• Hacé clic en el mapa para ubicar la OS.")
-        if not self.f_orden_servicio.text().strip():
+        n_os = self.f_orden_servicio.text().strip()
+        if not n_os:
             errores.append("• Orden de Servicio es obligatoria.")
+        elif existe_n_os(n_os):
+            errores.append(
+                f"• Ya existe una OS con N° {n_os} en la capa. "
+                "Revisá antes de cargarla de nuevo."
+            )
         if errores:
             QMessageBox.warning(self, "Campos incompletos", "\n".join(errores))
             return False

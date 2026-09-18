@@ -2,7 +2,7 @@
 name=Inspecciones
 qgisMinimumVersion=3.28
 description=Herramientas de inspecciones (SOMS - IM): registro de Ordenes de Servicio, copia de imagenes y conteo de OS por Etapa y Contrato
-version=1.3.0
+version=1.3.1
 author=Grupo TAU
 email=
 
