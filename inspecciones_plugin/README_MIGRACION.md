@@ -37,7 +37,7 @@ Base generada a partir de `cargar_os.py` (repo `Automatizaciones_Orden_Servicio`
 
 ## Estructura
 
-El plugin se llama **Inspecciones** y agrupa tres funcionalidades, las tres
+El plugin se llama **Inspecciones** y agrupa estas funcionalidades, todas
 bajo el menú *Complementos → Grupo TAU*:
 
 | Acción | Diálogo | Motor |
@@ -45,6 +45,9 @@ bajo el menú *Complementos → Grupo TAU*:
 | Registrar OS | `dialogo_registro_os.py` | `capa_utils.py`, `pdf_parser.py` |
 | Copiar imágenes de OS | `dialogo_copiar_imagenes.py` | `copiar_imagenes.py` |
 | Números de inspecciones | `dialogo_conteo.py` | `sacar_numeros.py` |
+| Exportar paquete de campo | `campo/dialogo_exportar.py` | `campo/exportar.py` |
+| Importar cambios de campo | `campo/dialogo_importar.py` | `campo/importar.py` |
+| Configurar conexión PostGIS | `campo/dialogo_conexion.py` | `campo/conexion.py`, `campo/esquema.py` |
 
 ```
 inspecciones_plugin/
@@ -58,6 +61,13 @@ inspecciones_plugin/
 ├── capa_utils.py               # config + acceso a capas + escritura del feature
 ├── copiar_imagenes.py          # copia de fotos de una OS a una carpeta
 ├── sacar_numeros.py            # conteo por Etapa y Contrato (capa o planilla)
+├── campo/                      # ida y vuelta con QField contra PostGIS
+│   ├── config.py               # tabla, clave, COLUMNAS_EDITABLES, claves de QgsSettings
+│   ├── conexion.py             # QgsSettings + QgsAuthManager, executeSql
+│   ├── esquema.py              # information_schema (equivalente a \d)
+│   ├── exportar.py             # PostGIS filtrado → .gpkg (reemplaza al ogr2ogr)
+│   ├── importar.py             # .gpkg → staging → UPSERT → DROP
+│   └── dialogo_*.py            # UIs
 └── icon.png                    # placeholder generado
 ```
 
@@ -73,3 +83,28 @@ identifica los plugins por el nombre de la carpeta, así que lo ve como un
 plugin distinto: **cada usuario tiene que desinstalar "Registrar OS" antes de
 instalar "Inspecciones"**, o le van a quedar los dos activos con los menús
 duplicados.
+
+## Módulo de campo (v1.4.0)
+
+Ida y vuelta con QField contra `inspecciones_os.inspecciones` en PostGIS.
+
+- **Conexión**: primera vez, *Configurar conexión PostGIS…*. Se puede elegir una
+  conexión ya guardada en el Navegador de QGIS o cargar una propia; en la propia
+  la contraseña va cifrada en el gestor de autenticación de QGIS (authcfg), y en
+  `QgsSettings` (`inspecciones/campo/*`) solo quedan host, puerto, base y el id.
+  El botón *Ver columnas de la tabla* muestra los nombres reales y cuáles son
+  editables.
+- **Exportar**: filtro por N° de OS y/o etapa (AND) → GeoPackage con la capa
+  `inspecciones`, sin reproyectar (EPSG:32721). Después, QFieldSync aparte.
+- **Importar**: el gpkg se copia a `inspecciones_os.inspecciones_staging_<iniciales>`
+  (iniciales del operario que se piden en el diálogo, en minúsculas: `NA` → `_na`)
+  (mismos tipos que la tabla real), se valida (clave nula o repetida corta), y
+  un único `INSERT ... ON CONFLICT ("n°_os") DO UPDATE` actualiza **solo**
+  `COLUMNAS_EDITABLES` de `campo/config.py`. La geometría y el resto de las
+  columnas se escriben solo en OS nuevas creadas en campo. `fid` lo genera la
+  base. El staging se borra siempre. *Probar* muestra los números sin tocar nada.
+- Permisos que necesita el usuario de la base: `SELECT/INSERT/UPDATE` sobre la
+  tabla y `CREATE` en el esquema `inspecciones_os` (para el staging).
+- Pendiente para otra fase: resolución de conflictos server/campo (se enchufa en
+  `Importacion.analizar()` / `aplicar()`), fotos (`fotos_os`), integración con
+  QFieldSync.

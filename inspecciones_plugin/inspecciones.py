@@ -16,6 +16,8 @@ class InspeccionesPlugin:
         self.dlg = None
         self.dlg_copiar_imagenes = None
         self.dlg_conteo = None
+        self.dlg_exportar_campo = None
+        self.dlg_importar_campo = None
 
     def initGui(self):
         icon = QIcon(os.path.join(os.path.dirname(__file__), "icon.png"))
@@ -25,6 +27,10 @@ class InspeccionesPlugin:
         self._agregar_accion(icon, "Registrar OS", self.run, en_barra=True)
         self._agregar_accion(icon, "Copiar imágenes de OS", self.run_copiar_imagenes)
         self._agregar_accion(icon, "Números de inspecciones", self.run_conteo, en_barra=True)
+        # Ida y vuelta con QField: solo menú.
+        self._agregar_accion(icon, "Exportar paquete de campo…", self.run_exportar_campo)
+        self._agregar_accion(icon, "Importar cambios de campo…", self.run_importar_campo)
+        self._agregar_accion(icon, "Configurar conexión PostGIS…", self.run_configurar_conexion)
 
     def _agregar_accion(self, icon, titulo, callback, en_barra=False):
         accion = QAction(icon, titulo, self.iface.mainWindow())
@@ -56,3 +62,23 @@ class InspeccionesPlugin:
         from .dialogo_conteo import DialogoConteo
         self.dlg_conteo = DialogoConteo()
         self.dlg_conteo.show()
+
+    def run_exportar_campo(self):
+        from .campo.dialogo_conexion import asegurar_conexion
+        from .campo.dialogo_exportar import DialogoExportar
+        if not asegurar_conexion(self.iface.mainWindow()):
+            return
+        self.dlg_exportar_campo = DialogoExportar()
+        self.dlg_exportar_campo.show()
+
+    def run_importar_campo(self):
+        from .campo.dialogo_conexion import asegurar_conexion
+        from .campo.dialogo_importar import DialogoImportar
+        if not asegurar_conexion(self.iface.mainWindow()):
+            return
+        self.dlg_importar_campo = DialogoImportar()
+        self.dlg_importar_campo.show()
+
+    def run_configurar_conexion(self):
+        from .campo.dialogo_conexion import DialogoConexion
+        DialogoConexion(self.iface.mainWindow()).exec_()
