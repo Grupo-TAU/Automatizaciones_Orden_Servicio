@@ -1,11 +1,14 @@
+import os
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QComboBox, QPlainTextEdit, QPushButton, QLabel,
+    QCheckBox, QComboBox, QPlainTextEdit, QPushButton, QLabel,
     QFileDialog, QMessageBox, QApplication,
 )
+from qgis.core import QgsProject
 
-from . import exportar
+from . import exportar, proyecto_campo
 from .dialogo_conexion import ESTILO_PRINCIPAL
 
 SIN_ETAPA = "(cualquier etapa)"
@@ -39,6 +42,16 @@ class DialogoExportar(QDialog):
         nota = QLabel("Si se completan los dos filtros se exportan las OS que cumplen ambos.")
         nota.setStyleSheet("color:#777;")
         layout.addWidget(nota)
+
+        self.chk_proyecto = QCheckBox(
+            "Generar también el proyecto de campo para QFieldSync (copia del proyecto abierto)"
+        )
+        self.chk_proyecto.setChecked(True)
+        self.chk_proyecto.setToolTip(
+            "Crea <nombre>_campo.qgz junto al GeoPackage, con la capa de inspecciones "
+            "apuntando al GeoPackage y marcada como 'Copy' en QFieldSync."
+        )
+        layout.addWidget(self.chk_proyecto)
 
         self.lbl_resultado = QLabel("")
         self.lbl_resultado.setWordWrap(True)
@@ -119,8 +132,43 @@ class DialogoExportar(QDialog):
             return
         QApplication.restoreOverrideCursor()
 
-        QMessageBox.information(
-            self, "Paquete de campo",
-            f"✓ {cantidad} inspección(es) exportada(s) a:\n{ruta}\n\n"
-            "Siguiente paso: empaquetarlo con QFieldSync y copiarlo al dispositivo.",
-        )
+        mensaje = f"✓ {cantidad} inspección(es) exportada(s) a:\n{ruta}"
+        if self.chk_proyecto.isChecked():
+            mensaje += "\n\n" + self._generar_proyecto(ruta)
+        else:
+            mensaje += "\n\nSiguiente paso: empaquetarlo con QFieldSync y copiarlo al dispositivo."
+        QMessageBox.information(self, "Paquete de campo", mensaje)
+
+    def _generar_proyecto(self, ruta_gpkg):
+        """Arma el proyecto de campo y devuelve el texto para el resumen."""
+        destino = proyecto_campo.ruta_proyecto_campo(ruta_gpkg)
+        if os.path.exists(destino):
+            respuesta = QMessageBox.question(
+                self, "Proyecto de campo",
+                f"Ya existe:\n{destino}\n\n¿Reemplazarlo con una copia nueva del proyecto abierto?\n\n"
+                "Si elegís No, se mantiene el existente: ya apunta a este mismo GeoPackage, "
+                "así que toma los datos recién exportados.",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            )
+            if respuesta != QMessageBox.Yes:
+                return f"Proyecto de campo (sin cambios):\n{destino}\n\nAbrilo y empaquetalo con QFieldSync."
+
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            destino, restantes = proyecto_campo.generar(ruta_gpkg, destino)
+        except Exception as e:
+            return f"✗ No se pudo generar el proyecto de campo: {e}"
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        texto = (f"✓ Proyecto de campo:\n{destino}\n\n"
+                 "Abrilo y empaquetalo con QFieldSync: la capa de inspecciones ya apunta "
+                 "al GeoPackage y está en 'Copy'.")
+        if QgsProject.instance().isDirty():
+            texto += "\n\nSe usó la última versión GUARDADA del proyecto abierto."
+        if restantes:
+            texto += ("\n\nEstas capas siguen siendo de PostGIS (en el celular no hay base): "
+                      + ", ".join(restantes)
+                      + ".\nEn QFieldSync elegí 'Offline editing' si las necesitás en campo, "
+                      "o 'Remove from project' si no.")
+        return texto

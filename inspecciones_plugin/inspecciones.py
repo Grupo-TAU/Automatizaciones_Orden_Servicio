@@ -2,6 +2,7 @@ import os
 
 from PyQt5.QtWidgets import QAction
 from PyQt5.QtGui import QIcon
+from qgis.core import QgsApplication
 
 
 class InspeccionesPlugin:
@@ -25,12 +26,14 @@ class InspeccionesPlugin:
         # Solo "Registrar OS" va a la barra de herramientas: es la acción de uso
         # diario, las otras dos se usan de a ratos y viven solo en el menú.
         self._agregar_accion(icon, "Registrar OS", self.run, en_barra=True)
-        self._agregar_accion(icon, "Copiar imágenes de OS", self.run_copiar_imagenes)
-        self._agregar_accion(icon, "Números de inspecciones", self.run_conteo, en_barra=True)
+        # El resto usa íconos del tema de QGIS para distinguirse en el menú.
+        tema = QgsApplication.getThemeIcon
+        self._agregar_accion(tema("/mActionEditCopy.svg"), "Copiar imágenes de OS", self.run_copiar_imagenes)
+        self._agregar_accion(tema("/mActionOpenTable.svg"), "Números de inspecciones", self.run_conteo, en_barra=True)
         # Ida y vuelta con QField: solo menú.
-        self._agregar_accion(icon, "Exportar paquete de campo…", self.run_exportar_campo)
-        self._agregar_accion(icon, "Importar cambios de campo…", self.run_importar_campo)
-        self._agregar_accion(icon, "Configurar conexión PostGIS…", self.run_configurar_conexion)
+        self._agregar_accion(tema("/mActionSharingExport.svg"), "Exportar paquete de campo…", self.run_exportar_campo)
+        self._agregar_accion(tema("/mActionSharingImport.svg"), "Importar cambios de campo…", self.run_importar_campo)
+        self._agregar_accion(tema("/mIconPostgis.svg"), "Configurar conexión PostGIS…", self.run_configurar_conexion)
 
     def _agregar_accion(self, icon, titulo, callback, en_barra=False):
         accion = QAction(icon, titulo, self.iface.mainWindow())

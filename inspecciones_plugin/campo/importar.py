@@ -31,9 +31,21 @@ MAX_LISTADO = 30
 
 
 def capas_gpkg(ruta):
-    """Nombres de las capas vectoriales dentro del GeoPackage."""
+    """Nombres de las capas vectoriales dentro del GeoPackage.
+
+    Si el gpkg es el data.gpkg que arma QFieldSync con "edición sin conexión",
+    se omiten sus tablas internas de registro (log_*).
+    """
     subcapas = QgsProviderRegistry.instance().querySublayers(ruta)
-    return [s.name() for s in subcapas if s.providerKey() == "ogr"]
+    return [s.name() for s in subcapas
+            if s.providerKey() == "ogr" and not s.name().startswith("log_")]
+
+
+def capa_sugerida(capas):
+    """"inspecciones" si está; si no, la que QFieldSync renombró a inspecciones_<id>."""
+    if config.CAPA_GPKG in capas:
+        return config.CAPA_GPKG
+    return next((c for c in capas if c.startswith(config.CAPA_GPKG + "_")), capas[0] if capas else "")
 
 
 def abrir_capa_gpkg(ruta, nombre_capa):

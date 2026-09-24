@@ -2,7 +2,7 @@
 name=Inspecciones
 qgisMinimumVersion=3.28
 description=Herramientas de inspecciones (SOMS - IM): registro de Ordenes de Servicio, copia de imagenes y conteo de OS por Etapa y Contrato, y exporta/importa el paquete de campo (QField) contra PostGIS
-version=1.4.0
+version=1.4.1
 author=Grupo TAU
 email=
 

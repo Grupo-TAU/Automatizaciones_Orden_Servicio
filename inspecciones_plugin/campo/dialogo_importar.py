@@ -96,8 +96,7 @@ class DialogoImportar(QDialog):
         self.lbl_archivo.setStyleSheet("color:green; font-weight:bold;")
         self.cb_capa.clear()
         self.cb_capa.addItems(capas)
-        if config.CAPA_GPKG in capas:
-            self.cb_capa.setCurrentText(config.CAPA_GPKG)
+        self.cb_capa.setCurrentText(importar.capa_sugerida(capas))
         self.salida.clear()
 
     def _listo(self):

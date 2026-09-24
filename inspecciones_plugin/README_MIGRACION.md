@@ -95,7 +95,12 @@ Ida y vuelta con QField contra `inspecciones_os.inspecciones` en PostGIS.
   El botón *Ver columnas de la tabla* muestra los nombres reales y cuáles son
   editables.
 - **Exportar**: filtro por N° de OS y/o etapa (AND) → GeoPackage con la capa
-  `inspecciones`, sin reproyectar (EPSG:32721). Después, QFieldSync aparte.
+  `inspecciones`, sin reproyectar (EPSG:32721). Opcionalmente genera
+  `<nombre>_campo.qgz` junto al gpkg (`campo/proyecto_campo.py`): copia del
+  último guardado del proyecto abierto, con la capa de PostGIS de inspecciones
+  apuntada al gpkg (conserva estilo y formulario), marcada "Copy" en QFieldSync
+  (`QFieldSync/action`) y con `n°_os` no nulo. Ese proyecto se empaqueta con
+  QFieldSync.
 - **Importar**: el gpkg se copia a `inspecciones_os.inspecciones_staging_<iniciales>`
   (iniciales del operario que se piden en el diálogo, en minúsculas: `NA` → `_na`)
   (mismos tipos que la tabla real), se valida (clave nula o repetida corta), y
