@@ -43,8 +43,10 @@ def tabla_calificada(tabla, esquema=config.ESQUEMA):
     return f"{qi(esquema)}.{qi(tabla)}"
 
 
-def nombre_staging(iniciales):
-    """inspecciones_staging_<iniciales del operario>, saneado a [a-z0-9_] y a 63 caracteres.
+def nombre_staging(iniciales, base=config.STAGING_BASE):
+    """<base>_<iniciales del operario>, saneado a [a-z0-9_] y a 63 caracteres.
+
+    base: inspecciones_staging, fotos_staging, observaciones_staging.
 
     En minúsculas para que en psql se pueda escribir sin comillas: "NA" → _na.
     """
@@ -52,7 +54,7 @@ def nombre_staging(iniciales):
     sufijo = re.sub(r"[^a-z0-9_]+", "_", sufijo.lower()).strip("_")
     if not sufijo:
         raise ValueError("Ingresá las iniciales del operario (se usan para nombrar la tabla de staging).")
-    return f"{config.STAGING_BASE}_{sufijo}"[:63]
+    return f"{base}_{sufijo}"[:63]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

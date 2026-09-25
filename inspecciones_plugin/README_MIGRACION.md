@@ -62,11 +62,16 @@ inspecciones_plugin/
 ├── copiar_imagenes.py          # copia de fotos de una OS a una carpeta
 ├── sacar_numeros.py            # conteo por Etapa y Contrato (capa o planilla)
 ├── campo/                      # ida y vuelta con QField contra PostGIS
-│   ├── config.py               # tabla, clave, COLUMNAS_EDITABLES, claves de QgsSettings
+│   ├── config.py               # tablas, claves, COLUMNAS_EDITABLES, TABLAS_HIJAS, destino de fotos
 │   ├── conexion.py             # QgsSettings + QgsAuthManager, executeSql
-│   ├── esquema.py              # information_schema (equivalente a \d)
-│   ├── exportar.py             # PostGIS filtrado → .gpkg (reemplaza al ogr2ogr)
-│   ├── importar.py             # .gpkg → staging → UPSERT → DROP
+│   ├── esquema.py              # information_schema / pg_constraint (equivalente a \d)
+│   ├── staging.py              # capa de gpkg → tabla de staging (común a las 3 tablas)
+│   ├── exportar.py             # PostGIS filtrado → .gpkg con inspecciones, fotos, observaciones
+│   ├── importar.py             # inspecciones: staging → UPSERT → DROP
+│   ├── importar_hijas.py       # fotos/observaciones: staging → INSERT con INNER JOIN → DROP
+│   ├── copiar_fotos.py         # archivos de fotos al servidor (carpeta de red o SSH)
+│   ├── proyecto_campo.py       # <nombre>_campo.qgz para QFieldSync
+│   ├── migraciones/            # SQL a correr a mano en la base (uuid de observaciones)
 │   └── dialogo_*.py            # UIs
 └── icon.png                    # placeholder generado
 ```
@@ -111,5 +116,34 @@ Ida y vuelta con QField contra `inspecciones_os.inspecciones` en PostGIS.
 - Permisos que necesita el usuario de la base: `SELECT/INSERT/UPDATE` sobre la
   tabla y `CREATE` en el esquema `inspecciones_os` (para el staging).
 - Pendiente para otra fase: resolución de conflictos server/campo (se enchufa en
-  `Importacion.analizar()` / `aplicar()`), fotos (`fotos_os`), integración con
-  QFieldSync.
+  `Importacion.analizar()` / `aplicar()`), integración con QFieldSync,
+  detección de typos en N°_OS huérfanos persistentes.
+
+### Fotos y observaciones (v1.5.0)
+
+Tablas hijas `inspecciones_os.fotos` y `inspecciones_os.observaciones`, con FK
+hacia `inspecciones."n°_os"` (la columna FK se lee del constraint).
+
+- **Exportar**: el mismo gpkg lleva las capas `fotos` (siempre vacía: en campo
+  solo se cargan nuevas) y `observaciones` (vacía, o con las de esas OS si se
+  marca la casilla). El proyecto de campo apunta las 3 capas al gpkg y conserva
+  las relaciones; en observaciones, `uuid` se completa solo con `uuid()`.
+- **Importar** es un asistente de 3 pasos que se habilitan en orden:
+  1. Inspecciones (lo de arriba).
+  2. Fotos y observaciones — bloqueado hasta terminar el paso 1. Solo entran
+     filas cuya OS existe (`INNER JOIN`); las huérfanas se listan por N°_OS y
+     quedan para el próximo ciclo. Una fila ya importada se reconoce por
+     `clave_dedupe` de `TABLAS_HIJAS` (fotos: `ruta_relativa`; observaciones:
+     `uuid`), nunca por `fid`. `conflicto` ("nada" / "actualizar") define si
+     además se actualizan columnas de filas existentes.
+  3. Copia de los archivos de las fotos recién insertadas: origen = carpeta
+     del gpkg + `ruta_relativa`; destino = `/srv/backups/fotos/inspecciones_os/`
+     + la misma ruta. Rutas fuera de `DCIM/FOTOS_OS/<N°_OS>/<archivo>` se
+     reportan y no se copian; los fallos son por archivo.
+- **Destino de fotos** (*Configurar conexión → Destino de fotos…*): carpeta de
+  red (`\\servidor\...` o unidad mapeada) o SSH con clave (`ssh.exe` de Windows,
+  `BatchMode`: no pide contraseña). La conexión a PostgreSQL no sirve para
+  copiar archivos.
+- **Antes del primer uso**: correr una vez `campo/migraciones/observaciones_uuid.sql`
+  en la base (agrega `uuid` a observaciones). Sin esa columna el paso 2 de
+  observaciones se corta con el aviso.

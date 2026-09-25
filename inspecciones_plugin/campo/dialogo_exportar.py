@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
 )
 from qgis.core import QgsProject
 
-from . import exportar, proyecto_campo
+from . import config, exportar, proyecto_campo
 from .dialogo_conexion import ESTILO_PRINCIPAL
 
 SIN_ETAPA = "(cualquier etapa)"
@@ -42,6 +42,20 @@ class DialogoExportar(QDialog):
         nota = QLabel("Si se completan los dos filtros se exportan las OS que cumplen ambos.")
         nota.setStyleSheet("color:#777;")
         layout.addWidget(nota)
+
+        # Tablas hijas: siempre van como capas (para cargar filas nuevas en campo);
+        # las "opcional" pueden llevar además las filas existentes de esas OS.
+        self.chk_hijas = {}
+        for tabla, cfg in config.TABLAS_HIJAS.items():
+            if cfg["exportar"] == "opcional":
+                chk = QCheckBox(f"Incluir las {tabla} existentes de esas OS")
+                layout.addWidget(chk)
+                self.chk_hijas[tabla] = chk
+        vacias = [t for t, cfg in config.TABLAS_HIJAS.items() if cfg["exportar"] == "vacia"]
+        if vacias:
+            nota_hijas = QLabel(f"{', '.join(vacias).capitalize()}: van vacías, en campo solo se cargan nuevas.")
+            nota_hijas.setStyleSheet("color:#777;")
+            layout.addWidget(nota_hijas)
 
         self.chk_proyecto = QCheckBox(
             "Generar también el proyecto de campo para QFieldSync (copia del proyecto abierto)"
@@ -124,15 +138,21 @@ class DialogoExportar(QDialog):
 
         numeros, etapa = self._filtros()
         QApplication.setOverrideCursor(Qt.WaitCursor)
+        incluir = [t for t, chk in self.chk_hijas.items() if chk.isChecked()]
         try:
-            cantidad = exportar.exportar(ruta, numeros, etapa)
+            exportadas = exportar.exportar(ruta, numeros, etapa, incluir)
         except Exception as e:
             QApplication.restoreOverrideCursor()
             QMessageBox.critical(self, "No se pudo exportar", str(e))
             return
         QApplication.restoreOverrideCursor()
 
-        mensaje = f"✓ {cantidad} inspección(es) exportada(s) a:\n{ruta}"
+        mensaje = f"✓ GeoPackage:\n{ruta}\n"
+        for capa, filas in exportadas.items():
+            if filas is None:
+                mensaje += f"\n  ⚠ {capa}: la tabla no existe en la base, no se exportó"
+            else:
+                mensaje += f"\n  {capa}: {filas} fila(s)"
         if self.chk_proyecto.isChecked():
             mensaje += "\n\n" + self._generar_proyecto(ruta)
         else:
@@ -155,15 +175,19 @@ class DialogoExportar(QDialog):
 
         QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
-            destino, restantes = proyecto_campo.generar(ruta_gpkg, destino)
+            destino, restantes, sin_capa = proyecto_campo.generar(ruta_gpkg, destino)
         except Exception as e:
             return f"✗ No se pudo generar el proyecto de campo: {e}"
         finally:
             QApplication.restoreOverrideCursor()
 
         texto = (f"✓ Proyecto de campo:\n{destino}\n\n"
-                 "Abrilo y empaquetalo con QFieldSync: la capa de inspecciones ya apunta "
-                 "al GeoPackage y está en 'Copy'.")
+                 "Abrilo y empaquetalo con QFieldSync: las capas ya apuntan "
+                 "al GeoPackage y están en 'Copy'.")
+        if sin_capa:
+            texto += ("\n\n⚠ El proyecto abierto no tiene capa de: " + ", ".join(sin_capa)
+                      + ". Agregala desde PostGIS al proyecto de oficina, con su formulario y la "
+                      "relación con inspecciones, guardá y volvé a exportar.")
         if QgsProject.instance().isDirty():
             texto += "\n\nSe usó la última versión GUARDADA del proyecto abierto."
         if restantes:

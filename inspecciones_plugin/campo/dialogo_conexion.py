@@ -80,12 +80,15 @@ class DialogoConexion(QDialog):
         btn_guardar.setMinimumHeight(30)
         btn_guardar.setStyleSheet(ESTILO_PRINCIPAL)
         btn_guardar.clicked.connect(self._guardar)
-        btn_columnas = QPushButton("Ver columnas de la tabla")
+        btn_columnas = QPushButton("Ver columnas de las tablas")
         btn_columnas.clicked.connect(self._ver_columnas)
+        btn_fotos = QPushButton("Destino de fotos…")
+        btn_fotos.clicked.connect(self._destino_fotos)
         btn_cerrar = QPushButton("Cerrar")
         btn_cerrar.clicked.connect(self._cerrar)
         h_botones.addWidget(btn_guardar)
         h_botones.addWidget(btn_columnas)
+        h_botones.addWidget(btn_fotos)
         h_botones.addStretch()
         h_botones.addWidget(btn_cerrar)
         layout.addLayout(h_botones)
@@ -144,7 +147,11 @@ class DialogoConexion(QDialog):
         self._ejecutar(conexion.probar)
 
     def _ver_columnas(self):
-        self._ejecutar(lambda: esquema.describir(esquema.leer(conexion.conectar())))
+        self._ejecutar(lambda: esquema.describir_todo(conexion.conectar()))
+
+    def _destino_fotos(self):
+        from .dialogo_destino_fotos import DialogoDestinoFotos
+        DialogoDestinoFotos(self).exec_()
 
     def _ejecutar(self, funcion):
         QApplication.setOverrideCursor(Qt.WaitCursor)

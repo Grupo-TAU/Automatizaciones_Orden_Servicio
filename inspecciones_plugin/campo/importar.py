@@ -2,7 +2,7 @@
 Import del GeoPackage editado en campo a PostGIS, con UPSERT seguro.
 
 Flujo (ver Importacion):
-  1. cargar_staging(): crea inspecciones_staging_<iniciales> con los MISMOS tipos
+  1. staging.Staging.cargar(): crea inspecciones_staging_<iniciales> con los MISMOS tipos
      que la tabla real (CREATE TABLE AS ... WITH NO DATA) y copia las filas del
      gpkg. Un valor que no entra en el tipo de la columna falla acá, antes de
      tocar la tabla real.
@@ -10,49 +10,21 @@ Flujo (ver Importacion):
   3. aplicar(): un único INSERT ... ON CONFLICT ("n°_os") DO UPDATE, atómico.
      El SET incluye SOLO config.COLUMNAS_EDITABLES; la geometría y el resto de
      las columnas se escriben únicamente en filas nuevas.
-  4. borrar_staging(): siempre, también si algo falló.
+  4. staging.Staging.borrar(): siempre, también si algo falló.
 
-Fuera de alcance por ahora (se enchufan en analizar()/aplicar()):
-  - resolución de conflictos cuando la misma OS se editó en el server y en campo;
-  - fotos/adjuntos (tabla fotos_os, todavía no existe).
+Las tablas hijas (fotos, observaciones) van DESPUÉS, en importar_hijas.py.
+
+Fuera de alcance por ahora (se enchufa en analizar()/aplicar()):
+  - resolución de conflictos cuando la misma OS se editó en el server y en campo.
 """
 
 from dataclasses import dataclass, field
 
-from PyQt5.QtCore import QDate, QDateTime, QTime, QVariant, Qt
-from qgis.core import QgsProviderRegistry, QgsVectorLayer
-
 from . import config, esquema
-from .conexion import conectar, ejecutar, nombre_staging, qi, ql, tabla_calificada
+from .conexion import conectar, ejecutar, nombre_staging, qi, tabla_calificada
+from .staging import Staging, abrir_capa_gpkg, capa_sugerida, capas_gpkg, columnas_a_cargar  # noqa: F401
 
-FILAS_POR_INSERT = 200
-TIPOS_TEXTO = {"text", "character varying", "character"}
 MAX_LISTADO = 30
-
-
-def capas_gpkg(ruta):
-    """Nombres de las capas vectoriales dentro del GeoPackage.
-
-    Si el gpkg es el data.gpkg que arma QFieldSync con "edición sin conexión",
-    se omiten sus tablas internas de registro (log_*).
-    """
-    subcapas = QgsProviderRegistry.instance().querySublayers(ruta)
-    return [s.name() for s in subcapas
-            if s.providerKey() == "ogr" and not s.name().startswith("log_")]
-
-
-def capa_sugerida(capas):
-    """"inspecciones" si está; si no, la que QFieldSync renombró a inspecciones_<id>."""
-    if config.CAPA_GPKG in capas:
-        return config.CAPA_GPKG
-    return next((c for c in capas if c.startswith(config.CAPA_GPKG + "_")), capas[0] if capas else "")
-
-
-def abrir_capa_gpkg(ruta, nombre_capa):
-    capa = QgsVectorLayer(f"{ruta}|layername={nombre_capa}", nombre_capa, "ogr")
-    if not capa.isValid():
-        raise RuntimeError(f"No se pudo abrir la capa '{nombre_capa}' de {ruta}.")
-    return capa
 
 
 @dataclass
@@ -96,25 +68,35 @@ class Importacion:
             insertadas, actualizadas = imp.aplicar()
     """
 
-    def __init__(self, ruta_gpkg, nombre_capa, iniciales):
-        self.staging = nombre_staging(iniciales)
+    def __init__(self, ruta_gpkg, nombre_capa, iniciales, conexion=None):
+        nombre = nombre_staging(iniciales)
         self.capa = abrir_capa_gpkg(ruta_gpkg, nombre_capa)
-        self.conexion = conectar()
+        self.conexion = conexion or conectar()
         self.esq = esquema.leer(self.conexion)
         self.avisos = []
         self._validar_esquema()
-        self.columnas = self._columnas_a_cargar()
+        self.columnas, ignoradas = columnas_a_cargar(self.esq, self.capa)
+        if ignoradas:
+            self.avisos.append("Columnas del GeoPackage que no están en la tabla (se ignoran): "
+                               + ", ".join(ignoradas))
+        campos_gpkg = set(self.capa.fields().names())
+        sin_dato = [c for c in config.COLUMNAS_EDITABLES if c not in campos_gpkg]
+        if sin_dato:
+            self.avisos.append("Columnas editables que no vienen en el GeoPackage (no se tocan): "
+                               + ", ".join(sin_dato))
         self.editables = [c for c in self.esq.nombres()
                           if c in config.COLUMNAS_EDITABLES and c in self.columnas]
         if config.ACTUALIZAR_GEOMETRIA and self.esq.geometria in self.columnas:
             self.editables.append(self.esq.geometria)
+        self.stg = Staging(self.conexion, self.esq, config.TABLA, nombre, self.capa, self.columnas)
+        self.staging = nombre
 
     def __enter__(self):
-        self.cargar_staging()
+        self.stg.cargar()
         return self
 
     def __exit__(self, *exc):
-        self.borrar_staging()
+        self.stg.borrar()
         return False
 
     # ── Validaciones ────────────────────────────────────────────────────────
@@ -137,86 +119,6 @@ class Importacion:
                 f"El GeoPackage está en {crs.authid()}, se esperaba EPSG:{config.SRID}. "
                 "No se transforma: revisá el archivo."
             )
-
-    def _columnas_a_cargar(self):
-        """Columnas del gpkg que existen en la tabla, en el orden de la tabla.
-
-        Se descartan las que genera la base (fid serial, identity, generadas):
-        en filas nuevas las completa PostgreSQL, en existentes no se tocan.
-        """
-        campos_gpkg = set(self.capa.fields().names())
-        columnas = []
-        for c in self.esq.columnas:
-            if c.nombre == self.esq.geometria:
-                continue
-            if c.nombre not in campos_gpkg:
-                continue
-            if c.generada or (c.tiene_default and c.nombre in self.esq.clave_primaria):
-                continue
-            columnas.append(c.nombre)
-
-        ignoradas = sorted(campos_gpkg - set(self.esq.nombres()))
-        if ignoradas:
-            self.avisos.append("Columnas del GeoPackage que no están en la tabla (se ignoran): "
-                               + ", ".join(ignoradas))
-        sin_dato = [c for c in config.COLUMNAS_EDITABLES if c not in campos_gpkg]
-        if sin_dato:
-            self.avisos.append("Columnas editables que no vienen en el GeoPackage (no se tocan): "
-                               + ", ".join(sin_dato))
-
-        if self.esq.geometria and self.capa.isSpatial():
-            columnas.append(self.esq.geometria)
-        return columnas
-
-    # ── Staging ─────────────────────────────────────────────────────────────
-    def cargar_staging(self):
-        stg = tabla_calificada(self.staging)
-        cols = ", ".join(qi(c) for c in self.columnas)
-        ejecutar(self.conexion, f"DROP TABLE IF EXISTS {stg}")
-        ejecutar(self.conexion, f"""
-            CREATE TABLE {stg} AS
-            SELECT {cols} FROM {tabla_calificada(config.TABLA)} WITH NO DATA
-        """)
-
-        lote = []
-        for feature in self.capa.getFeatures():
-            lote.append("(" + ", ".join(self._valor_sql(feature, c) for c in self.columnas) + ")")
-            if len(lote) >= FILAS_POR_INSERT:
-                self._insertar_lote(stg, cols, lote)
-                lote = []
-        if lote:
-            self._insertar_lote(stg, cols, lote)
-
-    def _insertar_lote(self, stg, cols, lote):
-        ejecutar(self.conexion, f"INSERT INTO {stg} ({cols}) VALUES\n" + ",\n".join(lote))
-
-    def _valor_sql(self, feature, columna):
-        if columna == self.esq.geometria:
-            geom = feature.geometry()
-            if geom is None or geom.isNull():
-                return "NULL"
-            sql = f"ST_SetSRID(ST_GeomFromWKB(decode({ql(geom.asWkb().toHex().data().decode())}, 'hex')), {config.SRID})"
-            return f"ST_Force2D({sql})" if self.esq.dimension_geom == 2 else sql
-
-        valor = feature[columna]
-        if valor is None or (isinstance(valor, QVariant) and valor.isNull()):
-            return "NULL"
-        if isinstance(valor, bool):
-            return "TRUE" if valor else "FALSE"
-        if isinstance(valor, (QDate, QDateTime, QTime)):
-            return ql(valor.toString(Qt.ISODate)) if valor.isValid() else "NULL"
-        texto = str(valor)
-        # Un "" en una columna no-texto (fecha, número) es un campo vacío del formulario.
-        if texto == "" and self.esq.por_nombre[columna].tipo not in TIPOS_TEXTO:
-            return "NULL"
-        # Literal sin tipo: PostgreSQL lo convierte al tipo de la columna de staging.
-        return ql(texto)
-
-    def borrar_staging(self):
-        try:
-            ejecutar(self.conexion, f"DROP TABLE IF EXISTS {tabla_calificada(self.staging)}")
-        except Exception:
-            pass    # no tapar el error original; queda para el próximo DROP IF EXISTS
 
     # ── Análisis (modo prueba) ──────────────────────────────────────────────
     def analizar(self):

@@ -93,3 +93,68 @@ def describir(esq):
     if config.CLAVE not in esq.por_nombre:
         lineas += ["", f"⚠ No existe la columna clave {qi(config.CLAVE)}."]
     return "\n".join(lineas)
+
+
+def columna_fk(conexion, tabla_hija):
+    """Columna de tabla_hija que referencia inspecciones."n°_os", leída del constraint.
+
+    Devuelve (nombre, declarada). Si no hay FK declarada, usa config.COLUMNA_FK_HIJAS
+    y declarada=False para que quien llama lo avise.
+    """
+    filas = ejecutar(conexion, f"""
+        SELECT a.attname
+        FROM pg_constraint c
+        JOIN pg_attribute a  ON a.attrelid  = c.conrelid  AND a.attnum  = ANY(c.conkey)
+        JOIN pg_attribute af ON af.attrelid = c.confrelid AND af.attnum = ANY(c.confkey)
+        WHERE c.contype = 'f'
+          AND c.conrelid  = {ql(tabla_calificada(tabla_hija))}::regclass
+          AND c.confrelid = {ql(tabla_calificada(config.TABLA))}::regclass
+          AND af.attname = {ql(config.CLAVE)}
+        LIMIT 1
+    """)
+    if filas:
+        return filas[0][0], True
+    return config.COLUMNA_FK_HIJAS, False
+
+
+def existe_tabla(conexion, tabla):
+    return bool(ejecutar(conexion, f"SELECT to_regclass({ql(tabla_calificada(tabla))}) IS NOT NULL")[0][0])
+
+
+def describir_hija(conexion, tabla):
+    """Texto tipo \\d de una tabla hija: FK, clave para no duplicar y editables."""
+    cfg = config.TABLAS_HIJAS[tabla]
+    if not existe_tabla(conexion, tabla):
+        return f"Tabla {config.ESQUEMA}.{tabla}\n\n⚠ No existe en la base."
+    esq = leer(conexion, tabla)
+    fk, declarada = columna_fk(conexion, tabla)
+    ancho = max(len(c.nombre) for c in esq.columnas)
+    lineas = [f"Tabla {config.ESQUEMA}.{tabla}", ""]
+    for c in esq.columnas:
+        roles = []
+        if c.nombre in esq.clave_primaria:
+            roles.append("clave primaria" + (" (la genera la base)" if c.tiene_default else ""))
+        if c.nombre == fk:
+            roles.append(f"FK → {config.TABLA}.{config.CLAVE}")
+        if c.nombre in cfg["clave_dedupe"]:
+            roles.append("identifica filas ya importadas")
+        if cfg["conflicto"] == "actualizar" and c.nombre in cfg["editables"]:
+            roles.append("EDITABLE en campo")
+        lineas.append(f"  {qi(c.nombre):<{ancho + 2}}  {c.tipo:<22}  {', '.join(roles) or 'solo inserción'}")
+
+    if not declarada:
+        lineas += ["", f"⚠ No hay FK declarada hacia {config.TABLA}; se usa {qi(fk)} (config.py)."]
+    if fk not in esq.por_nombre:
+        lineas += ["", f"⚠ No existe la columna {qi(fk)}."]
+    faltan = [c for c in cfg["clave_dedupe"] + cfg["editables"] if c not in esq.por_nombre]
+    if faltan:
+        lineas += ["", "⚠ Columnas de config.py que NO existen en la tabla: " + ", ".join(faltan)]
+        if config.COLUMNA_UUID in faltan:
+            lineas.append("  Para crear uuid: campo/migraciones/observaciones_uuid.sql")
+    return "\n".join(lineas)
+
+
+def describir_todo(conexion):
+    partes = [describir(leer(conexion))]
+    partes += [describir_hija(conexion, t) for t in config.TABLAS_HIJAS]
+    return ("\n\n" + "─" * 60 + "\n\n").join(partes)
