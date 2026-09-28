@@ -49,6 +49,7 @@ class DialogoExportar(QDialog):
         for tabla, cfg in config.TABLAS_HIJAS.items():
             if cfg["exportar"] == "opcional":
                 chk = QCheckBox(f"Incluir las {tabla} existentes de esas OS")
+                chk.setChecked(True)
                 layout.addWidget(chk)
                 self.chk_hijas[tabla] = chk
         vacias = [t for t, cfg in config.TABLAS_HIJAS.items() if cfg["exportar"] == "vacia"]
@@ -60,7 +61,7 @@ class DialogoExportar(QDialog):
         self.chk_proyecto = QCheckBox(
             "Generar también el proyecto de campo para QFieldSync (copia del proyecto abierto)"
         )
-        self.chk_proyecto.setChecked(True)
+        self.chk_proyecto.setChecked(False)
         self.chk_proyecto.setToolTip(
             "Crea <nombre>_campo.qgz junto al GeoPackage, con la capa de inspecciones "
             "apuntando al GeoPackage y marcada como 'Copy' en QFieldSync."
