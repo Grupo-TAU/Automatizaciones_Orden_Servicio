@@ -41,6 +41,7 @@ CAMPOS_PASO1 = [
     ("Ubicación", QVariant.String),
     ("Fecha_Ingreso", QVariant.Date),
     ("Descripción", QVariant.String),
+    ("Contacto", QVariant.String),
     ("N_Problema", QVariant.String),
     ("Contrato", QVariant.String),
     ("N° Trabajo", QVariant.String),
