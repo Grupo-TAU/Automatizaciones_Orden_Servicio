@@ -95,14 +95,17 @@ def _extraer_fecha_ingreso(texto):
 
 def _extraer_descripcion(texto):
     """
-    Descripción = lo que sigue al 2do "Informe:" (el 1ro es el del itinerario,
-    el 2do es el de la OS), hasta "TOTAL DE ARCHIVOS". Devuelve None si no hay
-    2do "Informe:" o viene vacío.
+    Descripción = lo que sigue al "Informe:" que aparece después del título
+    "Otras órdenes de servicio del problema", hasta "TOTAL DE ARCHIVOS".
+    Devuelve None si no está ese título, no hay "Informe:" después, o viene vacío.
     """
-    marcas = list(re.finditer(r'Informe:', texto))
-    if len(marcas) < 2:
+    seccion = re.search(r'Otras\s+[oó]rdenes\s+de\s+servicio', texto, re.IGNORECASE)
+    if not seccion:
         return None
-    resto = texto[marcas[1].end():]
+    marca = re.search(r'Informe:', texto[seccion.end():])
+    if not marca:
+        return None
+    resto = texto[seccion.end() + marca.end():]
     corte = re.search(r'TOTAL DE ARCHIVOS', resto)
     if corte:
         resto = resto[:corte.start()]
@@ -146,7 +149,7 @@ def parsear_pdf_os(ruta_pdf):
     if fecha_ingreso:
         datos['fecha_ingreso'] = fecha_ingreso
 
-    # ── Descripción — tras el 2do "Informe:" ──────────────────────────
+    # ── Descripción — "Informe:" posterior a "Otras órdenes de servicio" ──
     desc = _extraer_descripcion(texto)
     if desc:
         datos['descripcion'] = desc
@@ -219,7 +222,7 @@ def parsear_pdf_itinerario(ruta_pdf):
         if fecha_ingreso:
             datos['fecha_ingreso'] = fecha_ingreso
 
-        # ── Descripción — tras el 2do "Informe:" ──────────────────────
+        # ── Descripción — "Informe:" posterior a "Otras órdenes de servicio" ──
         desc = _extraer_descripcion(texto)
         if desc:
             datos['descripcion'] = desc
