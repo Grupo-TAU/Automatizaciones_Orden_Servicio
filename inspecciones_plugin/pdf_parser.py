@@ -95,20 +95,44 @@ def _extraer_fecha_ingreso(texto):
 
 def _extraer_descripcion(texto):
     """
-    Descripción = lo que sigue al "Informe:" que aparece después del título
-    "Otras órdenes de servicio del problema", hasta "TOTAL DE ARCHIVOS".
-    Devuelve None si no está ese título, no hay "Informe:" después, o viene vacío.
+    Descripción = el recuadro "Informe" de la primera OS bajo "Otras órdenes de
+    servicio del problema".
+
+    El recuadro es multilínea y la etiqueta "Informe:" está centrada en él, así
+    que pdfplumber puede dejar las primeras líneas ANTES de la etiqueta. Por eso
+    se arranca después de la línea "Resultado / Fecha:" de esa OS (la última
+    fila antes del recuadro) y se descarta la etiqueta "Informe:". Termina en
+    el primero de: "TOTAL DE ARCHIVOS", "Orden de Servicio <N°>" (otra OS) o
+    "Sistema Único de Respuesta" (encabezado de página siguiente).
+    Devuelve None si no está el título de la sección o viene vacío.
     """
     seccion = re.search(r'Otras\s+[oó]rdenes\s+de\s+servicio', texto, re.IGNORECASE)
     if not seccion:
         return None
-    marca = re.search(r'Informe:', texto[seccion.end():])
-    if not marca:
-        return None
-    resto = texto[seccion.end() + marca.end():]
-    corte = re.search(r'TOTAL DE ARCHIVOS', resto)
+    resto = texto[seccion.end():]
+
+    # La primera "Orden de Servicio N" del resto es el título de la propia OS
+    # (va antes de "Equipo / Resultado"), así que el corte se busca después del inicio.
+    fila = re.search(r'Resultado\s*/\s*Fecha:[^\n]*\n', resto)
+    if fila:
+        inicio = fila.end()
+    else:
+        marca = re.search(r'Informe:', resto)
+        if not marca:
+            return None
+        inicio = marca.end()
+    resto = resto[inicio:]
+
+    corte = re.search(
+        r'TOTAL DE ARCHIVOS|Orden de Servicio\s+\d|Sistema\s+[ÚU]nico de Respuesta',
+        resto,
+    )
     if corte:
         resto = resto[:corte.start()]
+
+    resto = re.sub(r'Informe:', ' ', resto)
+    # Timestamp de cabecera de la página siguiente, que pdfplumber deja antes del título.
+    resto = re.sub(r'\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}\s*$', '', resto.strip())
     desc = re.sub(r'\s+', ' ', resto).strip()
     return desc or None
 
