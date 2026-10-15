@@ -102,8 +102,8 @@ def _extraer_descripcion(texto):
     que pdfplumber puede dejar las primeras líneas ANTES de la etiqueta. Por eso
     se arranca después de la línea "Resultado / Fecha:" de esa OS (la última
     fila antes del recuadro) y se descarta la etiqueta "Informe:". Termina en
-    el primero de: "TOTAL DE ARCHIVOS", "Orden de Servicio <N°>" (otra OS) o
-    "Sistema Único de Respuesta" (encabezado de página siguiente).
+    el primero de: "TOTAL DE ARCHIVOS", "Orden de Servicio <N°>" (otra OS),
+    "Itinerario <N°>" (otro itinerario) o "Sistema Único de Respuesta" (encabezado de página siguiente).
     Devuelve None si no está el título de la sección o viene vacío.
     """
     seccion = re.search(r'Otras\s+[oó]rdenes\s+de\s+servicio', texto, re.IGNORECASE)
@@ -124,7 +124,7 @@ def _extraer_descripcion(texto):
     resto = resto[inicio:]
 
     corte = re.search(
-        r'TOTAL DE ARCHIVOS|Orden de Servicio\s+\d|Sistema\s+[ÚU]nico de Respuesta',
+        r'TOTAL DE ARCHIVOS|Orden de Servicio\s+\d|Itinerario\s+\d|Sistema\s+[ÚU]nico de Respuesta',
         resto,
     )
     if corte:
